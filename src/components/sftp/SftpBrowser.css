@@ -1,0 +1,173 @@
+.sftp-browser {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1e1e1e;
+}
+
+.sftp-header {
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.sftp-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #969696;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #808080;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  color: #cccccc;
+}
+
+.close-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sftp-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px 8px;
+  gap: 8px;
+}
+
+.sftp-path {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+}
+
+.nav-btn {
+  background: #3c3c3c;
+  border: none;
+  border-radius: 3px;
+  color: #cccccc;
+  cursor: pointer;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: #4c4c4c;
+}
+
+.nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.nav-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.path-text {
+  flex: 1;
+  font-size: 12px;
+  color: #808080;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sftp-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.sftp-actions button {
+  background: #3c3c3c;
+  border: none;
+  border-radius: 3px;
+  color: #cccccc;
+  cursor: pointer;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sftp-actions button:hover:not(:disabled) {
+  background: #4c4c4c;
+}
+
+.sftp-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sftp-actions button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.sftp-error {
+  padding: 8px 12px;
+  background: #5a1d1d;
+  color: #f48771;
+  font-size: 12px;
+}
+
+.sftp-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.sftp-loading {
+  padding: 20px;
+  text-align: center;
+  color: #808080;
+  font-size: 13px;
+}
+
+.sftp-content.dragging {
+  background: rgba(0, 122, 204, 0.1);
+}
+
+.drop-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 122, 204, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border: 2px dashed #007acc;
+  border-radius: 4px;
+  margin: 4px;
+}
+
+.drop-message {
+  color: #007acc;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 16px 24px;
+  background: rgba(30, 30, 30, 0.9);
+  border-radius: 4px;
+}
