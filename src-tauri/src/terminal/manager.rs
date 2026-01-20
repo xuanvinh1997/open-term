@@ -1,4 +1,4 @@
-use super::session::{SessionInfo, SessionReader, SshConnectionInfo, TerminalSession};
+use super::session::{SessionInfo, SshConnectionInfo, TerminalSession};
 use crate::ssh::AuthMethod;
 use crate::ssh::SshClient;
 use parking_lot::RwLock;

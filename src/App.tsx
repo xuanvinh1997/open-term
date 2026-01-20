@@ -1,7 +1,13 @@
 import { MainLayout } from "./components/layout/MainLayout";
+import { Toaster } from "@/components/ui/sonner";
 
 function App() {
-  return <MainLayout />;
+  return (
+    <>
+      <MainLayout />
+      <Toaster position="bottom-right" richColors />
+    </>
+  );
 }
 
 export default App;

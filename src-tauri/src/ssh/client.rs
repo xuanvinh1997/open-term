@@ -109,7 +109,7 @@ impl SshClient {
     }
 
     pub fn open_channel(&self) -> Result<SshChannel, SshError> {
-        let mut session = self.session.lock();
+        let session = self.session.lock();
 
         // Ensure blocking mode for channel setup
         session.set_blocking(true);
@@ -127,7 +127,7 @@ impl SshClient {
     }
 
     pub fn open_sftp(&self) -> Result<SftpSession, SshError> {
-        let mut session = self.session.lock();
+        let session = self.session.lock();
 
         // Ensure blocking mode for SFTP setup
         session.set_blocking(true);

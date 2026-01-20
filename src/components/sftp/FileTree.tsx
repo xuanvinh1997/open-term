@@ -9,7 +9,16 @@ import {
   VscArchive,
   VscTerminalBash,
 } from "react-icons/vsc";
-import "./FileTree.css";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 interface FileTreeProps {
   files: FileEntry[];
@@ -20,32 +29,28 @@ interface FileTreeProps {
 
 export function FileTree({ files, onNavigate, onDelete }: FileTreeProps) {
   const getFileIcon = (file: FileEntry) => {
-    if (file.file_type === "Directory") return <VscFolder />;
-    if (file.file_type === "Symlink") return <VscFileSymlinkFile />;
+    if (file.file_type === "Directory") return <VscFolder className="text-amber-400" />;
+    if (file.file_type === "Symlink") return <VscFileSymlinkFile className="text-purple-400" />;
 
     const ext = file.name.split(".").pop()?.toLowerCase();
     switch (ext) {
-      case "txt":
-      case "md":
-      case "log":
-        return <VscFile />;
       case "js":
       case "ts":
       case "jsx":
       case "tsx":
+        return <VscFileCode className="text-blue-400" />;
       case "py":
+        return <VscFileCode className="text-yellow-400" />;
       case "rs":
+        return <VscFileCode className="text-orange-400" />;
       case "go":
-      case "c":
-      case "cpp":
-      case "h":
-        return <VscFileCode />;
+        return <VscFileCode className="text-cyan-400" />;
       case "json":
       case "yaml":
       case "yml":
       case "xml":
       case "toml":
-        return <VscJson />;
+        return <VscJson className="text-yellow-300" />;
       case "png":
       case "jpg":
       case "jpeg":
@@ -53,19 +58,19 @@ export function FileTree({ files, onNavigate, onDelete }: FileTreeProps) {
       case "svg":
       case "webp":
       case "ico":
-        return <VscFileMedia />;
+        return <VscFileMedia className="text-purple-300" />;
       case "zip":
       case "tar":
       case "gz":
       case "rar":
       case "7z":
-        return <VscArchive />;
+        return <VscArchive className="text-orange-300" />;
       case "sh":
       case "bash":
       case "zsh":
-        return <VscTerminalBash />;
+        return <VscTerminalBash className="text-green-400" />;
       default:
-        return <VscFile />;
+        return <VscFile className="text-muted-foreground" />;
     }
   };
 
@@ -94,10 +99,7 @@ export function FileTree({ files, onNavigate, onDelete }: FileTreeProps) {
 
   const handleContextMenu = (e: React.MouseEvent, file: FileEntry) => {
     e.preventDefault();
-    // Simple context menu via confirm for now
-    if (confirm(`Delete "${file.name}"?`)) {
-      onDelete(file.path, file.file_type === "Directory");
-    }
+    onDelete(file.path, file.file_type === "Directory");
   };
 
   // Sort files: directories first, then by name
@@ -108,39 +110,61 @@ export function FileTree({ files, onNavigate, onDelete }: FileTreeProps) {
   });
 
   if (files.length === 0) {
-    return <div className="file-tree-empty">Empty directory</div>;
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-16 text-muted-foreground/60">
+        <VscFolder className="w-14 h-14 mb-4 opacity-40" />
+        <p className="text-sm font-medium">Empty directory</p>
+      </div>
+    );
   }
 
   return (
-    <div className="file-tree">
-      <table className="file-table">
-        <thead>
-          <tr>
-            <th className="col-name">Name</th>
-            <th className="col-size">Size</th>
-            <th className="col-date">Modified</th>
-          </tr>
-        </thead>
-        <tbody>
+    <ScrollArea className="h-full">
+      <Table>
+        <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-sm z-10">
+          <TableRow className="hover:bg-transparent border-border/40">
+            <TableHead className="w-auto text-xs font-semibold text-muted-foreground/80 py-2.5 px-4">Name</TableHead>
+            <TableHead className="w-20 text-right text-xs font-semibold text-muted-foreground/80 py-2.5 px-4">Size</TableHead>
+            <TableHead className="w-28 text-right text-xs font-semibold text-muted-foreground/80 py-2.5 px-4">Modified</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {sortedFiles.map((file) => (
-            <tr
+            <TableRow
               key={file.path}
-              className={`file-row ${file.file_type === "Directory" ? "is-dir" : ""}`}
+              className={cn(
+                "cursor-default border-border/30 transition-colors duration-150",
+                file.file_type === "Directory" && "cursor-pointer hover:bg-accent/50"
+              )}
               onClick={() => handleClick(file)}
               onContextMenu={(e) => handleContextMenu(e, file)}
             >
-              <td className="col-name">
-                <span className="file-icon">{getFileIcon(file)}</span>
-                <span className="file-name">{file.name}</span>
-              </td>
-              <td className="col-size">
+              <TableCell className="py-2 px-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex-shrink-0 w-4 h-4">
+                    {getFileIcon(file)}
+                  </span>
+                  <span
+                    className={cn(
+                      "truncate text-sm",
+                      file.file_type === "Directory" && "text-blue-400 font-medium",
+                      file.file_type === "Symlink" && "text-purple-400 italic"
+                    )}
+                  >
+                    {file.name}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell className="text-right text-muted-foreground/70 text-xs font-mono py-2 px-4">
                 {file.file_type === "Directory" ? "-" : formatSize(file.size)}
-              </td>
-              <td className="col-date">{formatDate(file.modified)}</td>
-            </tr>
+              </TableCell>
+              <TableCell className="text-right text-muted-foreground/70 text-xs py-2 px-4">
+                {formatDate(file.modified)}
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </ScrollArea>
   );
 }

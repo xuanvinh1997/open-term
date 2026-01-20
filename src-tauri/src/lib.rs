@@ -1,9 +1,11 @@
+mod ftp;
 mod sftp;
 mod ssh;
 mod state;
 mod storage;
 mod terminal;
 
+use ftp::{FtpAuthMethod, FtpBrowser, FtpClient};
 use parking_lot::Mutex;
 use sftp::{FileEntry, SftpBrowser, TransferProgress, TransferStatus};
 use ssh::AuthMethod;
@@ -16,6 +18,9 @@ use terminal::session::SessionInfo;
 
 // SFTP sessions stored separately with their own ID
 type SftpSessions = Arc<Mutex<HashMap<String, SftpBrowser>>>;
+
+// FTP sessions stored separately with their own ID
+type FtpSessions = Arc<Mutex<HashMap<String, FtpBrowser>>>;
 
 // ============ Terminal Commands ============
 
@@ -476,6 +481,296 @@ async fn sftp_upload_folder(
     Ok(progress)
 }
 
+// ============ FTP Commands ============
+
+#[tauri::command]
+async fn ftp_connect(
+    ftp_sessions: State<'_, FtpSessions>,
+    host: String,
+    port: u16,
+    username: Option<String>,
+    password: Option<String>,
+) -> Result<String, String> {
+    let auth = match (username, password) {
+        (Some(user), Some(pwd)) => FtpAuthMethod::Password {
+            username: user,
+            password: pwd,
+        },
+        _ => FtpAuthMethod::Anonymous,
+    };
+
+    let client = FtpClient::connect(&host, port, &auth)
+        .map_err(|e| format!("FTP connection failed: {}", e))?;
+
+    let browser = FtpBrowser::new(client.stream());
+
+    let ftp_id = uuid::Uuid::new_v4().to_string();
+    ftp_sessions.lock().insert(ftp_id.clone(), browser);
+
+    // Don't drop client - we need to keep the connection alive
+    std::mem::forget(client);
+
+    Ok(ftp_id)
+}
+
+#[tauri::command]
+async fn ftp_disconnect(ftp_sessions: State<'_, FtpSessions>, ftp_id: String) -> Result<(), String> {
+    let mut sessions = ftp_sessions.lock();
+    if let Some(browser) = sessions.remove(&ftp_id) {
+        // Try to quit gracefully
+        let stream = browser.stream();
+        let mut stream_guard = stream.lock();
+        let _ = stream_guard.quit();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn ftp_list_dir(
+    ftp_sessions: State<'_, FtpSessions>,
+    ftp_id: String,
+    path: String,
+) -> Result<Vec<ftp::FileEntry>, String> {
+    let sessions = ftp_sessions.lock();
+    let browser = sessions
+        .get(&ftp_id)
+        .ok_or_else(|| "FTP session not found".to_string())?;
+
+    browser.list_dir(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn ftp_pwd(ftp_sessions: State<'_, FtpSessions>, ftp_id: String) -> Result<String, String> {
+    let sessions = ftp_sessions.lock();
+    let browser = sessions
+        .get(&ftp_id)
+        .ok_or_else(|| "FTP session not found".to_string())?;
+
+    browser.pwd().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn ftp_mkdir(
+    ftp_sessions: State<'_, FtpSessions>,
+    ftp_id: String,
+    path: String,
+) -> Result<(), String> {
+    let sessions = ftp_sessions.lock();
+    let browser = sessions
+        .get(&ftp_id)
+        .ok_or_else(|| "FTP session not found".to_string())?;
+
+    browser.mkdir(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn ftp_delete(
+    ftp_sessions: State<'_, FtpSessions>,
+    ftp_id: String,
+    path: String,
+    is_dir: bool,
+) -> Result<(), String> {
+    let sessions = ftp_sessions.lock();
+    let browser = sessions
+        .get(&ftp_id)
+        .ok_or_else(|| "FTP session not found".to_string())?;
+
+    if is_dir {
+        browser.rmdir(&path).map_err(|e| e.to_string())
+    } else {
+        browser.delete(&path).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+async fn ftp_rename(
+    ftp_sessions: State<'_, FtpSessions>,
+    ftp_id: String,
+    from_path: String,
+    to_path: String,
+) -> Result<(), String> {
+    let sessions = ftp_sessions.lock();
+    let browser = sessions
+        .get(&ftp_id)
+        .ok_or_else(|| "FTP session not found".to_string())?;
+
+    browser.rename(&from_path, &to_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn ftp_download(
+    app_handle: AppHandle,
+    ftp_sessions: State<'_, FtpSessions>,
+    ftp_id: String,
+    remote_path: String,
+    local_path: String,
+) -> Result<ftp::TransferProgress, String> {
+    let sessions = ftp_sessions.lock();
+    let browser = sessions
+        .get(&ftp_id)
+        .ok_or_else(|| "FTP session not found".to_string())?;
+
+    let size = browser.size(&remote_path).unwrap_or(0);
+    let filename = std::path::Path::new(&remote_path)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let mut progress = ftp::TransferProgress::new(
+        filename,
+        local_path.clone(),
+        remote_path.clone(),
+        false,
+        size,
+    );
+
+    let transfer = ftp::FtpTransfer::new(browser.stream());
+    let transfer_id = progress.id.clone();
+    let app = app_handle.clone();
+
+    progress.status = ftp::TransferStatus::InProgress;
+
+    std::thread::spawn(move || {
+        let result = transfer.download(&remote_path, &local_path, |transferred, total| {
+            let _ = app.emit(
+                &format!("ftp-transfer-progress-{}", transfer_id),
+                (transferred, total),
+            );
+        });
+
+        match result {
+            Ok(_) => {
+                let _ = app.emit(&format!("ftp-transfer-complete-{}", transfer_id), true);
+            }
+            Err(e) => {
+                let _ = app.emit(&format!("ftp-transfer-error-{}", transfer_id), e.to_string());
+            }
+        }
+    });
+
+    Ok(progress)
+}
+
+#[tauri::command]
+async fn ftp_upload(
+    app_handle: AppHandle,
+    ftp_sessions: State<'_, FtpSessions>,
+    ftp_id: String,
+    local_path: String,
+    remote_path: String,
+) -> Result<ftp::TransferProgress, String> {
+    let sessions = ftp_sessions.lock();
+    let browser = sessions
+        .get(&ftp_id)
+        .ok_or_else(|| "FTP session not found".to_string())?;
+
+    let metadata = std::fs::metadata(&local_path).map_err(|e| e.to_string())?;
+    let filename = std::path::Path::new(&local_path)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let mut progress = ftp::TransferProgress::new(
+        filename,
+        local_path.clone(),
+        remote_path.clone(),
+        true,
+        metadata.len(),
+    );
+
+    let transfer = ftp::FtpTransfer::new(browser.stream());
+    let transfer_id = progress.id.clone();
+    let app = app_handle.clone();
+
+    progress.status = ftp::TransferStatus::InProgress;
+
+    std::thread::spawn(move || {
+        let result = transfer.upload(&local_path, &remote_path, |transferred, total| {
+            let _ = app.emit(
+                &format!("ftp-transfer-progress-{}", transfer_id),
+                (transferred, total),
+            );
+        });
+
+        match result {
+            Ok(_) => {
+                let _ = app.emit(&format!("ftp-transfer-complete-{}", transfer_id), true);
+            }
+            Err(e) => {
+                let _ = app.emit(&format!("ftp-transfer-error-{}", transfer_id), e.to_string());
+            }
+        }
+    });
+
+    Ok(progress)
+}
+
+#[tauri::command]
+async fn ftp_upload_folder(
+    app_handle: AppHandle,
+    ftp_sessions: State<'_, FtpSessions>,
+    ftp_id: String,
+    local_path: String,
+    remote_path: String,
+) -> Result<ftp::TransferProgress, String> {
+    let sessions = ftp_sessions.lock();
+    let browser = sessions
+        .get(&ftp_id)
+        .ok_or_else(|| "FTP session not found".to_string())?;
+
+    // Calculate folder size for progress
+    let mut total_size: u64 = 0;
+    for entry in walkdir::WalkDir::new(&local_path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.file_type().is_file() {
+            if let Ok(metadata) = entry.metadata() {
+                total_size += metadata.len();
+            }
+        }
+    }
+
+    let folder_name = std::path::Path::new(&local_path)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "folder".to_string());
+
+    let mut progress = ftp::TransferProgress::new(
+        folder_name,
+        local_path.clone(),
+        remote_path.clone(),
+        true,
+        total_size,
+    );
+
+    let transfer = ftp::FtpTransfer::new(browser.stream());
+    let transfer_id = progress.id.clone();
+    let app = app_handle.clone();
+
+    progress.status = ftp::TransferStatus::InProgress;
+
+    std::thread::spawn(move || {
+        let result = transfer.upload_folder(&local_path, &remote_path, |transferred, total, _filename| {
+            let _ = app.emit(
+                &format!("ftp-transfer-progress-{}", transfer_id),
+                (transferred, total),
+            );
+        });
+
+        match result {
+            Ok(_) => {
+                let _ = app.emit(&format!("ftp-transfer-complete-{}", transfer_id), true);
+            }
+            Err(e) => {
+                let _ = app.emit(&format!("ftp-transfer-error-{}", transfer_id), e.to_string());
+            }
+        }
+    });
+
+    Ok(progress)
+}
+
 // ============ Keychain Commands ============
 
 #[tauri::command]
@@ -490,6 +785,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(Arc::new(AppState::new()))
         .manage(SftpSessions::default())
+        .manage(FtpSessions::default())
         .invoke_handler(tauri::generate_handler![
             // Terminal
             create_terminal,
@@ -517,6 +813,17 @@ pub fn run() {
             sftp_download,
             sftp_upload,
             sftp_upload_folder,
+            // FTP
+            ftp_connect,
+            ftp_disconnect,
+            ftp_list_dir,
+            ftp_pwd,
+            ftp_mkdir,
+            ftp_delete,
+            ftp_rename,
+            ftp_download,
+            ftp_upload,
+            ftp_upload_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

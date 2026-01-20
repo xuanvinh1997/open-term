@@ -3,6 +3,26 @@ import { useSftpStore } from "../../stores/sftpStore";
 import { FileTree } from "./FileTree";
 import { TransferQueue } from "./TransferQueue";
 import { open } from "@tauri-apps/plugin-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import {
   VscClose,
   VscChevronUp,
@@ -11,7 +31,7 @@ import {
   VscCloudUpload,
   VscFolderOpened,
 } from "react-icons/vsc";
-import "./SftpBrowser.css";
+import { cn } from "@/lib/utils";
 
 interface SftpBrowserProps {
   sessionId: string;
@@ -36,6 +56,14 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
   } = useSftpStore();
 
   const [isDragging, setIsDragging] = useState(false);
+  const [showNewFolderModal, setShowNewFolderModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    path: string;
+    isDir: boolean;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     openSftp(sessionId);
@@ -50,16 +78,40 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
   };
 
   const handleCreateFolder = async () => {
-    const name = prompt("Enter folder name:");
-    if (name) {
-      await createDirectory(name);
+    setShowNewFolderModal(true);
+  };
+
+  const handleCreateFolderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFolderName.trim()) return;
+
+    setCreating(true);
+    try {
+      await createDirectory(newFolderName.trim());
+      toast.success(`Created folder "${newFolderName}"`);
+      setShowNewFolderModal(false);
+      setNewFolderName("");
+    } catch (err) {
+      toast.error(`Failed to create folder: ${err}`);
+    } finally {
+      setCreating(false);
     }
   };
 
   const handleDelete = async (path: string, isDir: boolean) => {
-    if (confirm(`Delete ${isDir ? "folder" : "file"} "${path.split("/").pop()}"?`)) {
-      await deleteItem(path, isDir);
+    const name = path.split("/").pop() || path;
+    setDeleteConfirm({ path, isDir, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
+    try {
+      await deleteItem(deleteConfirm.path, deleteConfirm.isDir);
+      toast.success(`Deleted "${deleteConfirm.name}"`);
+    } catch (err) {
+      toast.error(`Failed to delete: ${err}`);
     }
+    setDeleteConfirm(null);
   };
 
   const handleUploadFiles = async () => {
@@ -76,6 +128,7 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
         const remotePath = `${currentPath}/${filename}`;
         await upload(localPath, remotePath);
       }
+      toast.info(`Uploading ${paths.length} file(s)`);
     }
   };
 
@@ -87,7 +140,9 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
     });
 
     if (selected && typeof selected === "string") {
+      const folderName = selected.split(/[/\\]/).pop() || "folder";
       await uploadFolder(selected, currentPath);
+      toast.info(`Uploading folder "${folderName}"`);
     }
   };
 
@@ -103,81 +158,117 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
 
-      // Note: In Tauri, drag-drop from native file manager gives us file paths
-      // This requires the tauri drag-drop feature to work properly
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        // For web drag-drop, we can't easily get file paths
-        // Users should use the upload button instead
-        alert("Please use the upload button to select files or folders.");
-      }
-    },
-    [currentPath, upload, uploadFolder]
-  );
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      toast.info("Please use the upload button to select files or folders.");
+    }
+  }, []);
 
   const activeTransfers = transfers.filter(
     (t) => t.status === "InProgress" || t.status === "Pending"
   );
 
   return (
-    <div className="sftp-browser">
-      <div className="sftp-header">
-        <div className="sftp-title">
-          <span>SFTP</span>
-          <button className="close-btn" onClick={onClose} title="Close SFTP">
-            <VscClose />
-          </button>
+    <div className="flex flex-col h-full bg-card">
+      {/* Header */}
+      <div className="border-b border-border/60">
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            SFTP Browser
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive transition-colors"
+            onClick={onClose}
+          >
+            <VscClose className="h-3.5 w-3.5" />
+          </Button>
         </div>
-        <div className="sftp-toolbar">
-          <div className="sftp-path">
-            <button
-              className="nav-btn"
-              onClick={handleNavigateUp}
-              disabled={currentPath === "/"}
-              title="Go up"
-            >
-              <VscChevronUp />
-            </button>
-            <span className="path-text">{currentPath}</span>
+
+        {/* Toolbar */}
+        <div className="flex items-center gap-2 px-4 pb-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 hover:bg-accent"
+            onClick={handleNavigateUp}
+            disabled={currentPath === "/"}
+          >
+            <VscChevronUp className="h-4 w-4" />
+          </Button>
+          <div className="flex-1 px-3 py-1.5 text-xs font-mono text-muted-foreground bg-background/50 rounded-md border border-border/50 truncate">
+            {currentPath}
           </div>
-          <div className="sftp-actions">
-            <button onClick={refresh} disabled={loading} title="Refresh">
-              <VscRefresh />
-            </button>
-            <button onClick={handleCreateFolder} title="New folder">
-              <VscNewFolder />
-            </button>
-            <button onClick={handleUploadFiles} title="Upload files">
-              <VscCloudUpload />
-            </button>
-            <button onClick={handleUploadFolder} title="Upload folder">
-              <VscFolderOpened />
-            </button>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-accent"
+              onClick={refresh}
+              disabled={loading}
+            >
+              <VscRefresh className={cn("h-4 w-4", loading && "animate-spin")} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-accent"
+              onClick={handleCreateFolder}
+            >
+              <VscNewFolder className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-accent"
+              onClick={handleUploadFiles}
+            >
+              <VscCloudUpload className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-accent"
+              onClick={handleUploadFolder}
+            >
+              <VscFolderOpened className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
 
-      {error && <div className="sftp-error">{error}</div>}
+      {/* Error */}
+      {error && (
+        <div className="mx-4 mt-3 p-2.5 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+          {error}
+        </div>
+      )}
 
+      {/* File List */}
       <div
-        className={`sftp-content ${isDragging ? "dragging" : ""}`}
+        className={cn(
+          "flex-1 overflow-hidden mx-4 my-3 rounded-lg border border-border/50 bg-background/30 relative transition-colors duration-200",
+          isDragging && "border-primary/60 bg-primary/5"
+        )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         {isDragging && (
-          <div className="drop-overlay">
-            <div className="drop-message">Drop files here to upload</div>
+          <div className="absolute inset-0 flex items-center justify-center bg-primary/10 z-10 backdrop-blur-sm">
+            <span className="text-primary font-medium text-sm">Drop files here to upload</span>
           </div>
         )}
         {loading && !files.length ? (
-          <div className="sftp-loading">Loading...</div>
+          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+            Loading...
+          </div>
         ) : (
           <FileTree
             files={files}
@@ -188,9 +279,67 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
         )}
       </div>
 
+      {/* Transfer Queue */}
       {activeTransfers.length > 0 && (
         <TransferQueue transfers={activeTransfers} />
       )}
+
+      {/* New Folder Dialog */}
+      <Dialog open={showNewFolderModal} onOpenChange={setShowNewFolderModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Folder</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateFolderSubmit}>
+            <div className="py-4">
+              <Input
+                placeholder="Folder name"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setShowNewFolderModal(false);
+                  setNewFolderName("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={creating}>
+                {creating ? "Creating..." : "Create"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {deleteConfirm?.isDir ? "Folder" : "File"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteConfirm?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
