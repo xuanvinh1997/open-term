@@ -1,5 +1,5 @@
 import { MainLayout } from "./components/layout/MainLayout";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "sonner";
 
 function App() {
   return (

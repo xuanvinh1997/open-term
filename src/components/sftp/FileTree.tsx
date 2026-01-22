@@ -13,11 +13,10 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
+  TableColumn,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@heroui/react";
 import { cn } from "@/lib/utils";
 
 interface FileTreeProps {
@@ -119,14 +118,12 @@ export function FileTree({ files, onNavigate, onDelete }: FileTreeProps) {
   }
 
   return (
-    <ScrollArea className="h-full">
-      <Table>
-        <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-sm z-10">
-          <TableRow className="hover:bg-transparent border-border/40">
-            <TableHead className="w-auto text-xs font-semibold text-muted-foreground/80 py-2.5 px-4">Name</TableHead>
-            <TableHead className="w-20 text-right text-xs font-semibold text-muted-foreground/80 py-2.5 px-4">Size</TableHead>
-            <TableHead className="w-28 text-right text-xs font-semibold text-muted-foreground/80 py-2.5 px-4">Modified</TableHead>
-          </TableRow>
+    <div className="h-full overflow-auto">
+      <Table aria-label="File Tree" removeWrapper isCompact>
+        <TableHeader>
+            <TableColumn className="text-xs font-semibold text-default-500">Name</TableColumn>
+            <TableColumn className="text-right text-xs font-semibold text-default-500">Size</TableColumn>
+            <TableColumn className="text-right text-xs font-semibold text-default-500">Modified</TableColumn>
         </TableHeader>
         <TableBody>
           {sortedFiles.map((file) => (
@@ -165,6 +162,6 @@ export function FileTree({ files, onNavigate, onDelete }: FileTreeProps) {
           ))}
         </TableBody>
       </Table>
-    </ScrollArea>
+    </div>
   );
 }

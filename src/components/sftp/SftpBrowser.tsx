@@ -3,25 +3,7 @@ import { useSftpStore } from "../../stores/sftpStore";
 import { FileTree } from "./FileTree";
 import { TransferQueue } from "./TransferQueue";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Button, Input, Modal, ModalContent, ModalHeader, ModalFooter } from "@heroui/react";
 import { toast } from "sonner";
 import {
   VscClose,
@@ -285,11 +267,11 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
       )}
 
       {/* New Folder Dialog */}
-      <Dialog open={showNewFolderModal} onOpenChange={setShowNewFolderModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New Folder</DialogTitle>
-          </DialogHeader>
+      <Modal isOpen={showNewFolderModal} onOpenChange={setShowNewFolderModal}>
+        <ModalContent className="sm:max-w-md">
+          <ModalHeader>
+            <span className="font-bold text-lg">Create New Folder</span>
+          </ModalHeader>
           <form onSubmit={handleCreateFolderSubmit}>
             <div className="py-4">
               <Input
@@ -299,47 +281,47 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
                 autoFocus
               />
             </div>
-            <DialogFooter>
+            <ModalFooter>
               <Button
                 type="button"
-                variant="secondary"
-                onClick={() => {
+                variant="light"
+                onPress={() => {
                   setShowNewFolderModal(false);
                   setNewFolderName("");
                 }}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={creating}>
+              <Button type="submit" isDisabled={creating} color="primary">
                 {creating ? "Creating..." : "Create"}
               </Button>
-            </DialogFooter>
+            </ModalFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
+      <Modal isOpen={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <ModalContent>
+          <ModalHeader>
+            <span className="font-bold text-lg">
               Delete {deleteConfirm?.isDir ? "Folder" : "File"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
+            </span>
+            <p className="text-sm text-default-500">
               Are you sure you want to delete "{deleteConfirm?.name}"? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            </p>
+          </ModalHeader>
+          <ModalFooter>
+            <Button variant="light">Cancel</Button>
+            <Button color="danger"
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

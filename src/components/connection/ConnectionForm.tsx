@@ -2,17 +2,7 @@ import { useState } from "react";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { useTerminalStore } from "../../stores/terminalStore";
 import { useFtpStore } from "../../stores/ftpStore";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button, Input, Modal, ModalContent, ModalHeader, ModalBody, Tabs, Tab } from "@heroui/react";
 import { toast } from "sonner";
 import type { AuthMethod } from "../../types";
 
@@ -177,31 +167,21 @@ export function ConnectionForm({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>New Connection</DialogTitle>
-        </DialogHeader>
-
+    <Modal isOpen={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
+      <ModalContent className="sm:max-w-md">
+        <ModalHeader>New Connection</ModalHeader>
+        <ModalBody>
         <Tabs
-          value={connectionType}
-          onValueChange={(v) => {
+          selectedKey={connectionType}
+          onSelectionChange={(v) => {
             setConnectionType(v as "ssh" | "ftp");
             setError(null);
           }}
           className="w-full"
+          fullWidth
         >
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="ssh" className="text-sm">
-              SSH
-            </TabsTrigger>
-            <TabsTrigger value="ftp" className="text-sm">
-              FTP
-            </TabsTrigger>
-          </TabsList>
-
           {/* SSH Form */}
-          <TabsContent value="ssh" className="mt-0">
+          <Tab key="ssh" title="SSH">
             <form onSubmit={handleSshConnect} className="space-y-4">
               {error && connectionType === "ssh" && (
                 <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5 text-destructive text-sm">
@@ -210,7 +190,7 @@ export function ConnectionForm({
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="ssh-host">Host</Label>
+                <label className="text-sm font-medium" htmlFor="ssh-host">Host</label>
                 <Input
                   id="ssh-host"
                   type="text"
@@ -224,18 +204,18 @@ export function ConnectionForm({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="ssh-port">Port</Label>
+                  <label className="text-sm font-medium" htmlFor="ssh-port">Port</label>
                   <Input
                     id="ssh-port"
                     type="number"
-                    value={port}
+                    value={port.toString()}
                     onChange={(e) => setPort(parseInt(e.target.value) || 22)}
                     min={1}
                     max={65535}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ssh-username">Username</Label>
+                  <label className="text-sm font-medium" htmlFor="ssh-username">Username</label>
                   <Input
                     id="ssh-username"
                     type="text"
@@ -248,7 +228,7 @@ export function ConnectionForm({
 
               {/* Authentication */}
               <div className="space-y-2">
-                <Label>Authentication</Label>
+                <label className="text-sm font-medium">Authentication</label>
                 <div className="flex gap-4">
                   {(["password", "publickey", "agent"] as const).map((type) => (
                     <label
@@ -276,7 +256,7 @@ export function ConnectionForm({
               {/* Password field */}
               {authType === "password" && (
                 <div className="space-y-2">
-                  <Label htmlFor="ssh-password">Password</Label>
+                  <label className="text-sm font-medium" htmlFor="ssh-password">Password</label>
                   <Input
                     id="ssh-password"
                     type="password"
@@ -290,7 +270,7 @@ export function ConnectionForm({
               {authType === "publickey" && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="privateKeyPath">Private Key Path</Label>
+                    <label className="text-sm font-medium" htmlFor="privateKeyPath">Private Key Path</label>
                     <Input
                       id="privateKeyPath"
                       type="text"
@@ -300,7 +280,7 @@ export function ConnectionForm({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="passphrase">Passphrase (optional)</Label>
+                    <label className="text-sm font-medium" htmlFor="passphrase">Passphrase (optional)</label>
                     <Input
                       id="passphrase"
                       type="password"
@@ -327,7 +307,7 @@ export function ConnectionForm({
               {/* Connection name (shown when save is checked) */}
               {saveConnection && (
                 <div className="space-y-2">
-                  <Label htmlFor="connectionName">Connection Name</Label>
+                  <label className="text-sm font-medium" htmlFor="connectionName">Connection Name</label>
                   <Input
                     id="connectionName"
                     type="text"
@@ -339,7 +319,7 @@ export function ConnectionForm({
                 </div>
               )}
 
-              <DialogFooter className="gap-2 pt-4">
+              <div className="flex justify-end gap-2 pt-4">
                 <Button
                   type="button"
                   variant="ghost"
@@ -349,15 +329,15 @@ export function ConnectionForm({
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={connecting} className="min-w-[110px]">
+                <Button type="submit" isDisabled={connecting} className="min-w-[110px]" color="primary">
                   {connecting ? "Connecting..." : "Connect"}
                 </Button>
-              </DialogFooter>
+              </div>
             </form>
-          </TabsContent>
+          </Tab>
 
           {/* FTP Form */}
-          <TabsContent value="ftp" className="mt-0">
+          <Tab key="ftp" title="FTP">
             <form onSubmit={handleFtpConnect} className="space-y-4">
               {error && connectionType === "ftp" && (
                 <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5 text-destructive text-sm">
@@ -367,7 +347,7 @@ export function ConnectionForm({
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2 space-y-2">
-                  <Label htmlFor="ftp-host">Host</Label>
+                  <label className="text-sm font-medium" htmlFor="ftp-host">Host</label>
                   <Input
                     id="ftp-host"
                     type="text"
@@ -378,11 +358,11 @@ export function ConnectionForm({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ftp-port">Port</Label>
+                  <label className="text-sm font-medium" htmlFor="ftp-port">Port</label>
                   <Input
                     id="ftp-port"
                     type="number"
-                    value={ftpPort}
+                    value={ftpPort.toString()}
                     onChange={(e) => setFtpPort(parseInt(e.target.value) || 21)}
                     min={1}
                     max={65535}
@@ -406,7 +386,7 @@ export function ConnectionForm({
               {!useAnonymous && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="ftp-username">Username</Label>
+                    <label className="text-sm font-medium" htmlFor="ftp-username">Username</label>
                     <Input
                       id="ftp-username"
                       type="text"
@@ -418,7 +398,7 @@ export function ConnectionForm({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="ftp-password">Password</Label>
+                    <label className="text-sm font-medium" htmlFor="ftp-password">Password</label>
                     <Input
                       id="ftp-password"
                       type="password"
@@ -430,7 +410,7 @@ export function ConnectionForm({
                 </>
               )}
 
-              <DialogFooter className="gap-2 pt-4">
+              <div className="flex justify-end gap-2 pt-4">
                 <Button
                   type="button"
                   variant="ghost"
@@ -442,16 +422,18 @@ export function ConnectionForm({
                 </Button>
                 <Button
                   type="submit"
-                  disabled={connecting || !ftpHost}
+                  isDisabled={connecting || !ftpHost}
                   className="min-w-[110px]"
+                  color="primary"
                 >
                   {connecting ? "Connecting..." : "Connect"}
                 </Button>
-              </DialogFooter>
+              </div>
             </form>
-          </TabsContent>
+          </Tab>
         </Tabs>
-      </DialogContent>
-    </Dialog>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
   );
 }

@@ -1,30 +1,9 @@
 import { useEffect, useState } from "react";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { useTerminalStore } from "../../stores/terminalStore";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ConnectionProfile } from "../../types";
 import { VscAdd, VscTrash } from "react-icons/vsc";
 
@@ -36,6 +15,7 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
   const {
     connections,
     loading,
+    error,
     loadConnections,
     deleteConnection,
     connectToSaved,
@@ -150,17 +130,21 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between h-10 border-b border-border/60">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="flex flex-col h-full w-full">
+      <div className="flex items-center justify-between h-10 border-b border-white/10 shrink-0 px-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground select-none">
           Connections
         </h3>
-        <Button size="sm" className="h-7 text-xs w-15 font-semibold" onClick={onNewConnection}>
-          <VscAdd />New 
+        <Button size="sm" variant="flat" className="h-6 text-xs min-w-16 font-medium gap-1" onPress={onNewConnection}>
+          <VscAdd /> New
         </Button>
       </div>
 
-      {loading ? (
+      {error ? (
+        <div className="flex items-center justify-center p-4 text-red-500 text-sm h-32 text-center">
+          Error: {error}
+        </div>
+      ) : loading ? (
         <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
           Loading...
         </div>
@@ -170,7 +154,7 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
           <p className="text-xs mt-2">Click "+ New" to add a connection</p>
         </div>
       ) : (
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-auto">
           <div className="p-2">
             {connections.map((conn) => (
               <div
@@ -198,43 +182,40 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       )}
 
       {/* Password/Passphrase Modal */}
-      <Dialog
-        open={!!passwordPrompt}
-        onOpenChange={(open) => {
-          if (!open) {
+      <Modal
+        isOpen={!!passwordPrompt}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
             setPasswordPrompt(null);
             setPassword("");
             setPassphrase("");
           }
         }}
       >
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Authentication Required</DialogTitle>
-            <DialogDescription>{passwordPrompt?.connectionName}</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+        <ModalContent className="sm:max-w-sm">
+          <form onSubmit={handlePasswordSubmit}>
+          <ModalHeader className="flex flex-col gap-1">
+            Authentication Required
+            <span className="text-sm font-normal text-default-500">{passwordPrompt?.connectionName}</span>
+          </ModalHeader>
+          <ModalBody>
             {passwordPrompt?.needsPassword && (
-              <div className="space-y-2">
-                <Label htmlFor="auth-password">Password</Label>
-                <Input
-                  id="auth-password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoFocus
-                />
-              </div>
+              <Input
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoFocus
+              />
             )}
             {passwordPrompt?.needsPassphrase && (
               <div className="space-y-2">
-                <Label htmlFor="auth-passphrase">Key Passphrase</Label>
                 <Input
-                  id="auth-passphrase"
+                  label="Key Passphrase"
                   type="password"
                   value={passphrase}
                   onChange={(e) => setPassphrase(e.target.value)}
@@ -245,12 +226,13 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
                 </p>
               </div>
             )}
-            <DialogFooter className="gap-2">
+          </ModalBody>
+          <ModalFooter className="gap-2">
               <Button
                 type="button"
-                variant="ghost"
+                variant="light"
                 className="px-4"
-                onClick={() => {
+                onPress={() => {
                   setPasswordPrompt(null);
                   setPassword("");
                   setPassphrase("");
@@ -258,34 +240,34 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={!!connectingId} className="min-w-[100px]">
+              <Button type="submit" isDisabled={!!connectingId} className="min-w-[100px]" color="primary">
                 {connectingId ? "Connecting..." : "Connect"}
               </Button>
-            </DialogFooter>
+          </ModalFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Connection</AlertDialogTitle>
-            <AlertDialogDescription>
+      <Modal isOpen={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">Delete Connection</ModalHeader>
+          <ModalBody>
+            <p className="text-sm text-default-500">
               Are you sure you want to delete "{deleteConfirm?.name}"? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onPress={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button
+              onPress={confirmDelete}
+              color="danger"
             >
               Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }
