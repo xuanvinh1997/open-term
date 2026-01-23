@@ -42,8 +42,8 @@ export function Sidebar({ activeSshSession }: SidebarProps) {
   );
 
   return (
-    <div className="flex w-full h-full min-w-0 overflow-hidden bg-neutral-100 dark:bg-neutral-800">
-      <div className="flex flex-col shrink-0 w-[52px] bg-neutral-200 dark:bg-neutral-900 border-r border-neutral-300 dark:border-neutral-700 pt-1">
+    <div className="flex w-full h-full min-w-0 overflow-hidden bg-white dark:bg-neutral-800">
+      <div className="flex flex-col shrink-0 w-[52px] bg-white dark:bg-neutral-900 border-r border-neutral-300 dark:border-neutral-700 pt-1">
         <button
           className={tabClass(activeTab === "connections")}
           onClick={() => {
@@ -114,6 +114,7 @@ export function Sidebar({ activeSshSession }: SidebarProps) {
             <Button
               size="sm"
               onPress={() => openConnectionForm("ftp")}
+              className="bg-blue-500 text-white dark:bg-blue-600 dark:text-white hover:bg-blue-600 dark:hover:bg-blue-700"
             >
               Connect to FTP
             </Button>

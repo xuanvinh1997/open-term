@@ -221,7 +221,7 @@ export function ConnectionForm({
               )}
 
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="ssh-host">Host</label>
+                <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-host">Host</label>
                 <Input
                   id="ssh-host"
                   type="text"
@@ -235,7 +235,7 @@ export function ConnectionForm({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="ssh-port">Port</label>
+                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-port">Port</label>
                   <Input
                     id="ssh-port"
                     type="number"
@@ -246,7 +246,7 @@ export function ConnectionForm({
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="ssh-username">Username</label>
+                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-username">Username</label>
                   <Input
                     id="ssh-username"
                     type="text"
@@ -259,7 +259,7 @@ export function ConnectionForm({
 
               {/* Authentication */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Authentication</label>
+                <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Authentication</label>
                 <div className="flex gap-4">
                   {(["password", "publickey", "agent"] as const).map((type) => (
                     <label
@@ -287,7 +287,7 @@ export function ConnectionForm({
               {/* Password field */}
               {authType === "password" && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="ssh-password">Password</label>
+                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-password">Password</label>
                   <Input
                     id="ssh-password"
                     type="password"
@@ -301,7 +301,7 @@ export function ConnectionForm({
               {authType === "publickey" && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor="privateKeyPath">Private Key Path</label>
+                    <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="privateKeyPath">Private Key Path</label>
                     <Input
                       id="privateKeyPath"
                       type="text"
@@ -311,7 +311,7 @@ export function ConnectionForm({
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor="passphrase">Passphrase (optional)</label>
+                    <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="passphrase">Passphrase (optional)</label>
                     <Input
                       id="passphrase"
                       type="password"
@@ -338,7 +338,7 @@ export function ConnectionForm({
               {/* Connection name (shown when save is checked) */}
               {saveConnection && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="connectionName">Connection Name</label>
+                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="connectionName">Connection Name</label>
                   <Input
                     id="connectionName"
                     type="text"
@@ -378,7 +378,7 @@ export function ConnectionForm({
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2 space-y-2">
-                  <label className="text-sm font-medium" htmlFor="ftp-host">Host</label>
+                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-host">Host</label>
                   <Input
                     id="ftp-host"
                     type="text"
@@ -389,7 +389,7 @@ export function ConnectionForm({
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="ftp-port">Port</label>
+                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-port">Port</label>
                   <Input
                     id="ftp-port"
                     type="number"
@@ -417,7 +417,7 @@ export function ConnectionForm({
               {!useAnonymous && (
                 <>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor="ftp-username">Username</label>
+                    <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-username">Username</label>
                     <Input
                       id="ftp-username"
                       type="text"
@@ -429,7 +429,7 @@ export function ConnectionForm({
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor="ftp-password">Password</label>
+                    <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-password">Password</label>
                     <Input
                       id="ftp-password"
                       type="password"

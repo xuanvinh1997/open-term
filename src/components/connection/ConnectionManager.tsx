@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { useTerminalStore } from "../../stores/terminalStore";
-import { Button, Input, Modal,  ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
+import { Button, Input, Modal} from "@heroui/react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ConnectionProfile } from "../../types";
@@ -196,42 +196,105 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
           }
         }}
       >
-        <div className="sm:max-w-md">
-          <form onSubmit={handlePasswordSubmit}>
-            <ModalBody className="py-4 gap-4">
-              {passwordPrompt?.needsPassword && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="conn-password">Password</label>
-                  <Input
-                    id="conn-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoFocus
-                    className="w-full h-10"
-                  />
-                </div>
-              )}
-              {passwordPrompt?.needsPassphrase && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="conn-passphrase">Key Passphrase</label>
-                  <Input
-                    id="conn-passphrase"
-                    type="password"
-                    value={passphrase}
-                    onChange={(e) => setPassphrase(e.target.value)}
-                    autoFocus={!passwordPrompt?.needsPassword}
-                    className="w-full h-10"
-                  />
-                  <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                    Leave empty if your key has no passphrase
-                  </p>
-                </div>
-              )}
-            </ModalBody>
-           
-          </form>
-        </div>
+        <Modal.Backdrop>
+          <Modal.Container>
+            <Modal.Dialog>
+              <Modal.CloseTrigger />
+              <form onSubmit={handlePasswordSubmit}>
+                <Modal.Header>
+                  <Modal.Heading>Enter Credentials</Modal.Heading>
+                </Modal.Header>
+                <Modal.Body className="py-4 gap-4">
+                  {passwordPrompt?.needsPassword && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="conn-password">Password</label>
+                      <Input
+                        id="conn-password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        autoFocus
+                        className="w-full h-10"
+                      />
+                    </div>
+                  )}
+                  {passwordPrompt?.needsPassphrase && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="conn-passphrase">Key Passphrase</label>
+                      <Input
+                        id="conn-passphrase"
+                        type="password"
+                        value={passphrase}
+                        onChange={(e) => setPassphrase(e.target.value)}
+                        autoFocus={!passwordPrompt?.needsPassword}
+                        className="w-full h-10"
+                      />
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                        Leave empty if your key has no passphrase
+                      </p>
+                    </div>
+                  )}
+                </Modal.Body>
+                <Modal.Footer>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onPress={() => {
+                      setPasswordPrompt(null);
+                      setPassword("");
+                      setPassphrase("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700">
+                    Connect
+                  </Button>
+                </Modal.Footer>
+              </form>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deleteConfirm}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setDeleteConfirm(null);
+        }}
+      >
+        <Modal.Backdrop>
+          <Modal.Container>
+            <Modal.Dialog>
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Heading>Delete Connection</Modal.Heading>
+              </Modal.Header>
+              <Modal.Body className="py-4">
+                <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                  Are you sure you want to delete the connection <strong>"{deleteConfirm?.name}"</strong>? This action cannot be undone.
+                </p>
+              </Modal.Body>
+              <Modal.Footer>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onPress={() => setDeleteConfirm(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-red-600 text-white hover:bg-red-700"
+                  onPress={confirmDelete}
+                >
+                  Delete
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
       </Modal>
 
     </div>

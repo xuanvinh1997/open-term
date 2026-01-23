@@ -30,12 +30,12 @@ function getStatusString(status: TransferStatus): string {
 
 export function TransferQueue({ transfers }: TransferQueueProps) {
   const getStatusIcon = (status: TransferStatus) => {
-    if (status === "Pending") return <VscWatch className="text-yellow-500" />;
-    if (status === "InProgress") return <VscSync className="animate-spin text-blue-500" />;
-    if (status === "Completed") return <VscCheck className="text-green-500" />;
-    if (status === "Cancelled") return <VscCircleSlash className="text-neutral-500" />;
-    if (isFailedStatus(status)) return <VscError className="text-red-500" />;
-    return <VscWatch className="text-neutral-500" />;
+    if (status === "Pending") return <VscWatch className="text-yellow-500 dark:text-yellow-400" />;
+    if (status === "InProgress") return <VscSync className="animate-spin text-blue-500 dark:text-blue-400" />;
+    if (status === "Completed") return <VscCheck className="text-green-500 dark:text-green-400" />;
+    if (status === "Cancelled") return <VscCircleSlash className="text-neutral-500 dark:text-neutral-400" />;
+    if (isFailedStatus(status)) return <VscError className="text-red-500 dark:text-red-400" />;
+    return <VscWatch className="text-neutral-500 dark:text-neutral-400" />;
   };
 
   const getDirectionIcon = (isUpload: boolean) => {

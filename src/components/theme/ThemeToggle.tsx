@@ -38,7 +38,7 @@ export function ThemeToggle() {
       // variant="light"
       // radius="sm"
       onPress={toggleTheme}
-      className="text-neutral-400 hover:text-white dark:hover:text-white hover:text-neutral-900 data-[hover=true]:bg-white/10 dark:data-[hover=true]:bg-white/10 data-[hover=true]:bg-black/10 w-6 h-6 min-w-6"
+      className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white data-[hover=true]:bg-black/10 dark:data-[hover=true]:bg-white/10 w-6 h-6 min-w-6"
       aria-label="Toggle theme"
     >
       <VscColorMode size={16} />

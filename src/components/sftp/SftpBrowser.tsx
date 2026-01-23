@@ -3,7 +3,7 @@ import { useSftpStore } from "../../stores/sftpStore";
 import { FileTree } from "./FileTree";
 import { TransferQueue } from "./TransferQueue";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Button, Input, Modal,  ModalHeader, ModalFooter } from "@heroui/react";
+import { Button, Input, Modal } from "@heroui/react";
 import { toast } from "sonner";
 import {
   VscClose,
@@ -268,39 +268,73 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
 
       {/* New Folder Dialog */}
       <Modal isOpen={showNewFolderModal} onOpenChange={setShowNewFolderModal}>
-        <div className="sm:max-w-md">
-          <ModalHeader>
-            <span className="font-bold text-lg">Create New Folder</span>
-          </ModalHeader>
-          <form onSubmit={handleCreateFolderSubmit}>
-            <div className="py-4">
-              <Input
-                placeholder="Folder name"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <ModalFooter>
-              <Button
-                type="button"
-                variant="ghost"
-                onPress={() => {
-                  setShowNewFolderModal(false);
-                  setNewFolderName("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" isDisabled={creating} className="bg-blue-600 text-white hover:bg-blue-700">
-                {creating ? "Creating..." : "Create"}
-              </Button>
-            </ModalFooter>
-          </form>
-        </div>
+        <Modal.Backdrop>
+          <Modal.Container>
+            <Modal.Dialog>
+              <Modal.CloseTrigger />
+              <form onSubmit={handleCreateFolderSubmit}>
+                <Modal.Header>
+                  <Modal.Heading>Create New Folder</Modal.Heading>
+                </Modal.Header>
+                <Modal.Body className="py-4">
+                  <Input
+                    placeholder="Folder name"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    autoFocus
+                  />
+                </Modal.Body>
+                <Modal.Footer>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onPress={() => {
+                      setShowNewFolderModal(false);
+                      setNewFolderName("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" isDisabled={creating} className="bg-blue-600 text-white hover:bg-blue-700">
+                    {creating ? "Creating..." : "Create"}
+                  </Button>
+                </Modal.Footer>
+              </form>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
       </Modal>
 
-      
+      {/* Delete Confirmation */}
+      <Modal isOpen={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <Modal.Backdrop>
+          <Modal.Container>
+            <Modal.Dialog>
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Heading>
+                  Delete {deleteConfirm?.isDir ? "Folder" : "File"}
+                </Modal.Heading>
+              </Modal.Header>
+              <Modal.Body className="py-4">
+                <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                  Are you sure you want to delete "{deleteConfirm?.name}"? This action cannot be undone.
+                </p>
+              </Modal.Body>
+              <Modal.Footer>
+                <Button type="button" variant="ghost" onPress={() => setDeleteConfirm(null)}>Cancel</Button>
+                <Button
+                  type="button"
+                  onPress={confirmDelete}
+                  className="bg-red-600 text-white hover:bg-red-700"
+                >
+                  Delete
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
     </div>
   );
 }
