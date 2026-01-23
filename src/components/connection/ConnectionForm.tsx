@@ -39,13 +39,15 @@ export function ConnectionForm({
   const [error, setError] = useState<string | null>(null);
 
   // FTP state
+  const [ftpName, setFtpName] = useState("");
   const [ftpHost, setFtpHost] = useState("");
   const [ftpPort, setFtpPort] = useState(21);
   const [ftpUsername, setFtpUsername] = useState("");
   const [ftpPassword, setFtpPassword] = useState("");
   const [useAnonymous, setUseAnonymous] = useState(false);
+  const [saveFtpConnection, setSaveFtpConnection] = useState(false);
 
-  const { saveConnection: saveConn, connectDirect } = useConnectionStore();
+  const { saveConnection: saveConn, saveFtpConnection: saveFtpConn, connectDirect } = useConnectionStore();
   const { connect: ftpConnect } = useFtpStore();
 
   const resetForm = () => {
@@ -61,11 +63,13 @@ export function ConnectionForm({
     setSaveConnection(false);
     setError(null);
     // FTP
+    setFtpName("");
     setFtpHost("");
     setFtpPort(21);
     setFtpUsername("");
     setFtpPassword("");
     setUseAnonymous(false);
+    setSaveFtpConnection(false);
   };
 
   const handleClose = () => {
@@ -147,6 +151,19 @@ export function ConnectionForm({
     setError(null);
 
     try {
+      // Save connection if requested
+      if (saveFtpConnection && ftpName) {
+        await saveFtpConn(
+          ftpName,
+          ftpHost,
+          ftpPort,
+          useAnonymous ? null : ftpUsername,
+          useAnonymous ? null : ftpPassword,
+          useAnonymous
+        );
+      }
+
+      // Connect
       if (useAnonymous) {
         await ftpConnect(ftpHost, ftpPort);
       } else {
@@ -440,6 +457,34 @@ export function ConnectionForm({
                     />
                   </TextField>
                 </>
+              )}
+
+              {/* Save connection checkbox */}
+              <div className="pt-2">
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
+                  <Input variant="secondary" 
+                    type="checkbox"
+                    checked={saveFtpConnection}
+                    onChange={(e) => setSaveFtpConnection(e.target.checked)}
+                    className="cursor-pointer accent-primary"
+                  />
+                  Save connection
+                </label>
+              </div>
+
+              {/* Connection name (shown when save is checked) */}
+              {saveFtpConnection && (
+                <TextField className="space-y-2">
+                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-connectionName">Connection Name</label>
+                  <Input variant="secondary" 
+                    id="ftp-connectionName"
+                    type="text"
+                    value={ftpName}
+                    onChange={(e) => setFtpName(e.target.value)}
+                    placeholder="My FTP Server"
+                    required={saveFtpConnection}
+                  />
+                </TextField>
               )}
 
               <div className="flex justify-end gap-3 pt-6 border-t border-neutral-200 dark:border-neutral-700 mt-4">

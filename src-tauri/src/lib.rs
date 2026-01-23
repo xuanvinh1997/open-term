@@ -124,13 +124,43 @@ async fn save_connection(
         _ => return Err("Invalid auth type".to_string()),
     };
 
-    let profile = ConnectionProfile::new(name, host, port, username, auth_method);
+    let profile = ConnectionProfile::new_ssh(name, host, port, username, auth_method);
 
     // Store password in keychain if provided
     if let Some(pwd) = password {
         if !pwd.is_empty() {
             KeychainManager::store_password(&profile.id, &pwd)
                 .map_err(|e| format!("Failed to store password: {}", e))?;
+        }
+    }
+
+    storage
+        .save_connection(profile.clone())
+        .map_err(|e| e.to_string())?;
+
+    Ok(profile)
+}
+
+#[tauri::command]
+async fn save_ftp_connection(
+    name: String,
+    host: String,
+    port: u16,
+    username: Option<String>,
+    password: Option<String>,
+    anonymous: bool,
+) -> Result<ConnectionProfile, String> {
+    let storage = ConnectionStorage::new().map_err(|e| e.to_string())?;
+
+    let profile = ConnectionProfile::new_ftp(name, host, port, username, anonymous);
+
+    // Store password in keychain if provided and not anonymous
+    if !anonymous {
+        if let Some(pwd) = password {
+            if !pwd.is_empty() {
+                KeychainManager::store_password(&profile.id, &pwd)
+                    .map_err(|e| format!("Failed to store password: {}", e))?;
+            }
         }
     }
 
@@ -162,6 +192,16 @@ async fn connect_saved(
     let storage = ConnectionStorage::new().map_err(|e| e.to_string())?;
     let profile = storage.get(&connection_id).map_err(|e| e.to_string())?;
 
+    // Extract SSH connection details
+    let (host, port, username) = match &profile.connection_type {
+        storage::connections::ConnectionType::Ssh { host, port, username, .. } => {
+            (host.clone(), *port, username.clone())
+        }
+        storage::connections::ConnectionType::Ftp { .. } => {
+            return Err("Cannot connect SSH to FTP connection profile".to_string());
+        }
+    };
+
     // Try to get password from keychain if not provided
     let pwd = password.or_else(|| KeychainManager::get_password(&connection_id).ok());
 
@@ -169,7 +209,7 @@ async fn connect_saved(
 
     let info = state
         .terminal_manager
-        .create_ssh_session(&profile.host, profile.port, &profile.username, &auth)?;
+        .create_ssh_session(&host, port, &username, &auth)?;
 
     state
         .terminal_manager
@@ -796,6 +836,13 @@ async fn has_stored_password(connection_id: String) -> Result<bool, String> {
     Ok(KeychainManager::has_password(&connection_id))
 }
 
+#[tauri::command]
+async fn keychain_get_password(connection_id: String) -> Result<Option<String>, String> {
+    KeychainManager::get_password(&connection_id)
+        .map(Some)
+        .or_else(|_| Ok(None))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -816,9 +863,11 @@ pub fn run() {
             list_connections,
             get_connection,
             save_connection,
+            save_ftp_connection,
             delete_connection,
             connect_saved,
             has_stored_password,
+            keychain_get_password,
             // SFTP
             sftp_open,
             sftp_close,

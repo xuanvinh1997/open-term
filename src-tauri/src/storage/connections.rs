@@ -1,6 +1,6 @@
 use crate::ssh::AuthMethod;
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -26,19 +26,98 @@ pub enum StoredAuthMethod {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "connection_type")]
+pub enum ConnectionType {
+    #[serde(rename = "ssh")]
+    Ssh {
+        host: String,
+        port: u16,
+        username: String,
+        auth_method: StoredAuthMethod,
+    },
+    #[serde(rename = "ftp")]
+    Ftp {
+        host: String,
+        port: u16,
+        username: Option<String>,
+        anonymous: bool,
+    },
+}
+
+// Old format for backward compatibility
+#[derive(Debug, Clone, Deserialize)]
+struct OldConnectionProfile {
+    id: String,
+    name: String,
+    host: String,
+    port: u16,
+    username: String,
+    auth_method: StoredAuthMethod,
+    created_at: DateTime<Utc>,
+    last_used: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ConnectionProfile {
     pub id: String,
     pub name: String,
-    pub host: String,
-    pub port: u16,
-    pub username: String,
-    pub auth_method: StoredAuthMethod,
+    #[serde(flatten)]
+    pub connection_type: ConnectionType,
     pub created_at: DateTime<Utc>,
     pub last_used: Option<DateTime<Utc>>,
 }
 
+impl<'de> Deserialize<'de> for ConnectionProfile {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum ProfileFormat {
+            New(NewFormat),
+            Old(OldConnectionProfile),
+        }
+
+        #[derive(Deserialize)]
+        struct NewFormat {
+            id: String,
+            name: String,
+            #[serde(flatten)]
+            connection_type: ConnectionType,
+            created_at: DateTime<Utc>,
+            last_used: Option<DateTime<Utc>>,
+        }
+
+        match ProfileFormat::deserialize(deserializer)? {
+            ProfileFormat::New(new) => Ok(ConnectionProfile {
+                id: new.id,
+                name: new.name,
+                connection_type: new.connection_type,
+                created_at: new.created_at,
+                last_used: new.last_used,
+            }),
+            ProfileFormat::Old(old) => {
+                // Convert old format to new format (assume SSH)
+                Ok(ConnectionProfile {
+                    id: old.id,
+                    name: old.name,
+                    connection_type: ConnectionType::Ssh {
+                        host: old.host,
+                        port: old.port,
+                        username: old.username,
+                        auth_method: old.auth_method,
+                    },
+                    created_at: old.created_at,
+                    last_used: old.last_used,
+                })
+            }
+        }
+    }
+}
+
 impl ConnectionProfile {
-    pub fn new(
+    pub fn new_ssh(
         name: String,
         host: String,
         port: u16,
@@ -48,29 +127,60 @@ impl ConnectionProfile {
         Self {
             id: Uuid::new_v4().to_string(),
             name,
-            host,
-            port,
-            username,
-            auth_method,
+            connection_type: ConnectionType::Ssh {
+                host,
+                port,
+                username,
+                auth_method,
+            },
+            created_at: Utc::now(),
+            last_used: None,
+        }
+    }
+
+    pub fn new_ftp(
+        name: String,
+        host: String,
+        port: u16,
+        username: Option<String>,
+        anonymous: bool,
+    ) -> Self {
+        Self {
+            id: Uuid::new_v4().to_string(),
+            name,
+            connection_type: ConnectionType::Ftp {
+                host,
+                port,
+                username,
+                anonymous,
+            },
             created_at: Utc::now(),
             last_used: None,
         }
     }
 
     pub fn to_auth_method(&self, password: Option<String>, passphrase: Option<String>) -> AuthMethod {
-        match &self.auth_method {
-            StoredAuthMethod::Password => {
+        match &self.connection_type {
+            ConnectionType::Ssh { auth_method, .. } => match auth_method {
+                StoredAuthMethod::Password => {
+                    AuthMethod::Password {
+                        password: password.unwrap_or_default(),
+                    }
+                }
+                StoredAuthMethod::PublicKey { private_key_path } => {
+                    AuthMethod::PublicKey {
+                        private_key_path: private_key_path.clone(),
+                        passphrase,
+                    }
+                }
+                StoredAuthMethod::Agent => AuthMethod::Agent,
+            },
+            ConnectionType::Ftp { .. } => {
+                // FTP connections don't use SSH auth
                 AuthMethod::Password {
                     password: password.unwrap_or_default(),
                 }
             }
-            StoredAuthMethod::PublicKey { private_key_path } => {
-                AuthMethod::PublicKey {
-                    private_key_path: private_key_path.clone(),
-                    passphrase,
-                }
-            }
-            StoredAuthMethod::Agent => AuthMethod::Agent,
         }
     }
 }

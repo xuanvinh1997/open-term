@@ -3,6 +3,9 @@ import { TerminalTabs } from "../terminal/TerminalTabs";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "../theme/ThemeToggle";
 import { useTerminalStore } from "../../stores/terminalStore";
+import { useFtpStore } from "../../stores/ftpStore";
+import { SftpBrowser } from "../sftp/SftpBrowser";
+import { FtpBrowser } from "../ftp";
 import {
   Panel,
   Group as PanelGroup,
@@ -13,14 +16,28 @@ import { VscLayoutSidebarLeft } from "react-icons/vsc";
 import { Button } from "@heroui/react";
 
 export function MainLayout() {
-  const { tabs, activeTabId } = useTerminalStore();
   const sidebarRef = useRef<PanelImperativeHandle>(null);
-  const [sidebarActiveTab, setSidebarActiveTab] = useState<"connections" | "sftp" | "ftp">("connections");
+  const [activeSftpSession, setActiveSftpSession] = useState<string | null>(null);
+  const [showFtpBrowser, setShowFtpBrowser] = useState(false);
+  const ftpId = useFtpStore((state) => state.ftpId);
 
-  // Find if the active tab is an SSH session
-  const activeTab = tabs.find((tab) => tab.id === activeTabId);
-  const activeSshSession =
-    activeTab?.sessionInfo.session_type.type === "Ssh" ? activeTab.id : null;
+  const handleOpenSftp = (sessionId: string) => {
+    setActiveSftpSession(sessionId);
+    setShowFtpBrowser(false);
+  };
+
+  const handleCloseSftp = () => {
+    setActiveSftpSession(null);
+  };
+
+  const handleOpenFtp = () => {
+    setShowFtpBrowser(true);
+    setActiveSftpSession(null);
+  };
+
+  const handleCloseFtp = () => {
+    setShowFtpBrowser(false);
+  };
 
   const toggleSidebar = () => {
     const sidebar = sidebarRef.current;
@@ -68,25 +85,45 @@ export function MainLayout() {
             collapsedSize={0}
           >
             <Sidebar 
-              activeSshSession={activeSshSession}
-              activeTab={sidebarActiveTab}
-              onActiveTabChange={setSidebarActiveTab}
+              onOpenSftp={handleOpenSftp}
+              onOpenFtp={handleOpenFtp}
             />
           </Panel>
 
-          {/* Resize Handle - only show when terminal is visible */}
-          {sidebarActiveTab !== "ftp" && (
+          {/* Resize Handle - hide only when FTP is active */}
+          {!showFtpBrowser && (
             <PanelResizeHandle className="w-1 hover:cursor-auto bg-neutral-300 dark:bg-neutral-800 hover:bg-blue-600/50 transition-colors duration-200 outline-none flex justify-center items-center group cursor-col-resize z-10" />
           )}
 
-          {/* Terminal Panel - hide only when FTP is active, keep visible for SFTP */}
-          {sidebarActiveTab !== "ftp" && (
-            <Panel id="terminal" defaultSize={80} minSize={40}>
-              <div className="h-full flex flex-col overflow-hidden">
-                <TerminalTabs />
-              </div>
-            </Panel>
-          )}
+          {/* Main Content Panel */}
+          <Panel id="main-content" defaultSize={80} minSize={40}>
+            <div className="h-full flex flex-col overflow-hidden">
+              {/* FTP Browser - Full width, hides terminal */}
+              {showFtpBrowser && ftpId ? (
+                <FtpBrowser onClose={handleCloseFtp} />
+              ) : (
+                /* SFTP + Terminal Split or Terminal Only */
+                <PanelGroup orientation="horizontal" className="h-full">
+                  {/* SFTP Browser Panel - Only show when SFTP is active */}
+                  {activeSftpSession && (
+                    <>
+                      <Panel id="sftp" defaultSize={50} minSize={30}>
+                        <SftpBrowser
+                          sessionId={activeSftpSession}
+                          onClose={handleCloseSftp}
+                        />
+                      </Panel>
+                      <PanelResizeHandle className="w-1 hover:cursor-auto bg-neutral-300 dark:bg-neutral-800 hover:bg-blue-600/50 transition-colors duration-200 outline-none flex justify-center items-center group cursor-col-resize z-10" />
+                    </>
+                  )}
+                  {/* Terminal Panel */}
+                  <Panel id="terminal" defaultSize={activeSftpSession ? 50 : 100} minSize={30}>
+                    <TerminalTabs />
+                  </Panel>
+                </PanelGroup>
+              )}
+            </div>
+          </Panel>
         </PanelGroup>
       </main>
     </div>

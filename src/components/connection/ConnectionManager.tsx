@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { useTerminalStore } from "../../stores/terminalStore";
+import { useFtpStore } from "../../stores/ftpStore";
 import { Button, Input, Modal, TextField} from "@heroui/react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { invoke } from "@tauri-apps/api/core";
 import type { ConnectionProfile } from "../../types";
-import { VscAdd, VscTrash } from "react-icons/vsc";
+import { VscAdd, VscTrash, VscFolder, VscCloud } from "react-icons/vsc";
 
 interface ConnectionManagerProps {
   onNewConnection: () => void;
+  onOpenSftp: (sessionId: string) => void;
+  onOpenFtp: () => void;
 }
 
-export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
+export function ConnectionManager({ onNewConnection, onOpenSftp, onOpenFtp }: ConnectionManagerProps) {
   const {
     connections,
     loading,
@@ -21,6 +25,7 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
     connectToSaved,
     hasStoredPassword,
   } = useConnectionStore();
+  const { connect: ftpConnect } = useFtpStore();
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [passwordPrompt, setPasswordPrompt] = useState<{
     connectionId: string;
@@ -37,11 +42,41 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
   }, []);
 
   const handleConnect = async (connection: ConnectionProfile) => {
+    // Handle FTP connections
+    if (connection.connection_type === "ftp") {
+      setConnectingId(connection.id);
+      try {
+        const password = await invoke<string | null>("keychain_get_password", { 
+          connectionId: connection.id 
+        }).catch(() => null);
+
+        if (connection.anonymous) {
+          await ftpConnect(connection.host!, connection.port!);
+        } else {
+          await ftpConnect(
+            connection.host!,
+            connection.port!,
+            connection.username!,
+            password || ""
+          );
+        }
+
+        toast.success(`Connected to ${connection.name}`);
+        onOpenFtp();
+      } catch (err) {
+        toast.error(`FTP connection failed: ${String(err)}`);
+      } finally {
+        setConnectingId(null);
+      }
+      return;
+    }
+
+    // Handle SSH connections
     // Check if we need to prompt for password/passphrase
     const hasPassword = await hasStoredPassword(connection.id);
     const needsPassword =
-      connection.auth_method.auth_type === "Password" && !hasPassword;
-    const needsPassphrase = connection.auth_method.auth_type === "PublicKey";
+      connection.auth_method?.auth_type === "Password" && !hasPassword;
+    const needsPassphrase = connection.auth_method?.auth_type === "PublicKey";
 
     if (needsPassword || needsPassphrase) {
       setPasswordPrompt({
@@ -119,6 +154,7 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
   };
 
   const formatAuthType = (authMethod: ConnectionProfile["auth_method"]) => {
+    if (!authMethod) return "FTP";
     switch (authMethod.auth_type) {
       case "Password":
         return "Password";
@@ -127,6 +163,16 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
       case "Agent":
         return "Agent";
     }
+  };
+
+  const formatConnectionInfo = (conn: ConnectionProfile) => {
+    if (conn.connection_type === "ftp") {
+      if (conn.anonymous) {
+        return `${conn.host}:${conn.port} (Anonymous)`;
+      }
+      return `${conn.username}@${conn.host}:${conn.port} (FTP)`;
+    }
+    return `${conn.username}@${conn.host}:${conn.port} (${formatAuthType(conn.auth_method)})`;
   };
 
   return (
@@ -139,6 +185,8 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
           <VscAdd /> New
         </Button>
       </div>
+
+      
 
       {error ? (
         <div className="flex items-center justify-center p-4 text-red-500 text-sm h-32 text-center">
@@ -169,7 +217,7 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-neutral-900 dark:text-neutral-100 truncate font-medium">{conn.name}</div>
                   <div className="text-xs text-neutral-600 dark:text-neutral-400 truncate mt-1">
-                    {conn.username}@{conn.host}:{conn.port} ({formatAuthType(conn.auth_method)})
+                    {formatConnectionInfo(conn)}
                   </div>
                 </div>
                 <button

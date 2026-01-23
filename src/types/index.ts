@@ -26,13 +26,31 @@ export type StoredAuthMethod =
   | { auth_type: "Agent" };
 
 // Connection types
+export type ConnectionType =
+  | {
+      connection_type: "ssh";
+      host: string;
+      port: number;
+      username: string;
+      auth_method: StoredAuthMethod;
+    }
+  | {
+      connection_type: "ftp";
+      host: string;
+      port: number;
+      username: string | null;
+      anonymous: boolean;
+    };
+
 export interface ConnectionProfile {
   id: string;
   name: string;
+  connection_type: ConnectionType["connection_type"];
   host: string;
   port: number;
-  username: string;
-  auth_method: StoredAuthMethod;
+  username?: string;
+  auth_method?: StoredAuthMethod;
+  anonymous?: boolean;
   created_at: string;
   last_used: string | null;
 }

@@ -18,6 +18,14 @@ interface ConnectionState {
     privateKeyPath?: string,
     password?: string
   ) => Promise<ConnectionProfile>;
+  saveFtpConnection: (
+    name: string,
+    host: string,
+    port: number,
+    username: string | null,
+    password: string | null,
+    anonymous: boolean
+  ) => Promise<ConnectionProfile>;
   deleteConnection: (id: string) => Promise<void>;
   connectToSaved: (
     connectionId: string,
@@ -65,6 +73,23 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
       authType,
       privateKeyPath,
       password,
+    });
+
+    set((state) => ({
+      connections: [...state.connections, profile],
+    }));
+
+    return profile;
+  },
+
+  saveFtpConnection: async (name, host, port, username, password, anonymous) => {
+    const profile = await invoke<ConnectionProfile>("save_ftp_connection", {
+      name,
+      host,
+      port,
+      username,
+      password,
+      anonymous,
     });
 
     set((state) => ({
