@@ -184,7 +184,7 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
           >
             <VscChevronUp className="h-4 w-4" />
           </Button>
-          <div className="flex-1 px-3 py-1.5 text-xs font-mono text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 rounded-md border border-neutral-300 dark:border-neutral-700 truncate">
+          <div className="flex-1 px-3 py-1.5 text-xs font-mono text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 rounded-md border-2 border-neutral-400 dark:border-neutral-600 truncate">
             {currentPath}
           </div>
           <div className="flex gap-1">
@@ -277,7 +277,7 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
                   <Modal.Heading>Create New Folder</Modal.Heading>
                 </Modal.Header>
                 <Modal.Body className="py-4">
-                  <Input
+                  <Input variant="secondary" 
                     placeholder="Folder name"
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}

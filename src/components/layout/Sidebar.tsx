@@ -10,13 +10,14 @@ import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   activeSshSession: string | null;
+  activeTab: "connections" | "sftp" | "ftp";
+  onActiveTabChange: (tab: "connections" | "sftp" | "ftp") => void;
 }
 
-export function Sidebar({ activeSshSession }: SidebarProps) {
+export function Sidebar({ activeSshSession, activeTab, onActiveTabChange }: SidebarProps) {
   const [showConnectionForm, setShowConnectionForm] = useState(false);
   const [connectionFormDefaultTab, setConnectionFormDefaultTab] = useState<"ssh" | "ftp">("ssh");
   const [showSftp, setShowSftp] = useState(false);
-  const [activeTab, setActiveTab] = useState<"connections" | "sftp" | "ftp">("connections");
   const ftpId = useFtpStore((state) => state.ftpId);
 
   const handleConnectionConnected = () => {
@@ -25,7 +26,7 @@ export function Sidebar({ activeSshSession }: SidebarProps) {
 
   const handleFtpConnected = () => {
     setShowConnectionForm(false);
-    setActiveTab("ftp");
+    onActiveTabChange("ftp");
   };
 
   const openConnectionForm = (defaultTab: "ssh" | "ftp" = "ssh") => {
@@ -36,18 +37,18 @@ export function Sidebar({ activeSshSession }: SidebarProps) {
   const tabClass = (isActive: boolean) => cn(
     "w-[52px] h-[44px] flex items-center justify-center bg-transparent border-0 cursor-pointer transition-all border-l-2 my-0.5 text-neutral-700 dark:text-neutral-300",
     isActive 
-      ? "opacity-100 bg-neutral-300 dark:bg-neutral-800 border-l-blue-500" 
+      ? "opacity-100 border-l-blue-500" 
       : "opacity-50 border-l-transparent hover:opacity-100 hover:bg-neutral-300/50 dark:hover:bg-neutral-800",
     "disabled:opacity-25 disabled:cursor-not-allowed"
   );
 
   return (
-    <div className="flex w-full h-full min-w-0 overflow-hidden bg-white dark:bg-neutral-800">
-      <div className="flex flex-col shrink-0 w-[52px] bg-white dark:bg-neutral-900 border-r border-neutral-300 dark:border-neutral-700 pt-1">
+    <div className="flex w-full h-full min-w-0 overflow-hidden bg-neutral-100 dark:bg-neutral-800">
+      <div className="flex flex-col shrink-0 w-[52px] border-r border-neutral-300 dark:border-neutral-700 pt-1">
         <button
           className={tabClass(activeTab === "connections")}
           onClick={() => {
-            setActiveTab("connections");
+            onActiveTabChange("connections");
           }}
           title="Connections"
         >
@@ -57,7 +58,7 @@ export function Sidebar({ activeSshSession }: SidebarProps) {
           className={tabClass(activeTab === "sftp")}
           onClick={() => {
             if (activeSshSession) {
-              setActiveTab("sftp");
+              onActiveTabChange("sftp");
               setShowSftp(true);
             }
           }}
@@ -68,7 +69,7 @@ export function Sidebar({ activeSshSession }: SidebarProps) {
         </button>
         <button
           className={tabClass(activeTab === "ftp")}
-          onClick={() => setActiveTab("ftp")}
+          onClick={() => onActiveTabChange("ftp")}
           title="FTP Browser"
         >
           <VscCloud size={20} />
@@ -87,7 +88,7 @@ export function Sidebar({ activeSshSession }: SidebarProps) {
             sessionId={activeSshSession}
             onClose={() => {
               setShowSftp(false);
-              setActiveTab("connections");
+              onActiveTabChange("connections");
             }}
           />
         )}
@@ -101,23 +102,16 @@ export function Sidebar({ activeSshSession }: SidebarProps) {
         {activeTab === "ftp" && ftpId && (
           <FtpBrowser
             onClose={() => {
-              setActiveTab("connections");
+              onActiveTabChange("connections");
             }}
           />
         )}
 
         {activeTab === "ftp" && !ftpId && (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center text-neutral-600 dark:text-neutral-400 text-sm leading-normal">
-            <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-4">
-              Connect to an FTP server to browse files.
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm">
+              Connect to an FTP server from the Connections tab to browse files.
             </p>
-            <Button
-              size="sm"
-              onPress={() => openConnectionForm("ftp")}
-              className="bg-blue-500 text-white dark:bg-blue-600 dark:text-white hover:bg-blue-600 dark:hover:bg-blue-700"
-            >
-              Connect to FTP
-            </Button>
           </div>
         )}
       </div>

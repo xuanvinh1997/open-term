@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { useTerminalStore } from "../../stores/terminalStore";
 import { useFtpStore } from "../../stores/ftpStore";
-import { Button, Input } from "@heroui/react";
+import { Button, Input, TextField } from "@heroui/react";
 import { toast } from "sonner";
 import type { AuthMethod } from "../../types";
 
@@ -222,7 +222,7 @@ export function ConnectionForm({
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-host">Host</label>
-                <Input
+                <Input variant="secondary" 
                   id="ssh-host"
                   type="text"
                   value={host}
@@ -236,7 +236,7 @@ export function ConnectionForm({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-port">Port</label>
-                  <Input
+                  <Input variant="secondary" 
                     id="ssh-port"
                     type="number"
                     value={port.toString()}
@@ -247,7 +247,7 @@ export function ConnectionForm({
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-username">Username</label>
-                  <Input
+                  <Input variant="secondary" 
                     id="ssh-username"
                     type="text"
                     value={username}
@@ -266,7 +266,7 @@ export function ConnectionForm({
                       key={type}
                       className="flex items-center gap-1.5 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400"
                     >
-                      <input
+                      <Input variant="secondary" 
                         type="radio"
                         name="authType"
                         value={type}
@@ -288,7 +288,7 @@ export function ConnectionForm({
               {authType === "password" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-password">Password</label>
-                  <Input
+                  <Input variant="secondary" 
                     id="ssh-password"
                     type="password"
                     value={password}
@@ -302,7 +302,7 @@ export function ConnectionForm({
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="privateKeyPath">Private Key Path</label>
-                    <Input
+                    <Input variant="secondary" 
                       id="privateKeyPath"
                       type="text"
                       value={privateKeyPath}
@@ -312,7 +312,7 @@ export function ConnectionForm({
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="passphrase">Passphrase (optional)</label>
-                    <Input
+                    <Input variant="secondary" 
                       id="passphrase"
                       type="password"
                       value={passphrase}
@@ -325,7 +325,7 @@ export function ConnectionForm({
               {/* Save connection checkbox */}
               <div className="pt-2">
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
-                  <input
+                  <Input variant="secondary" 
                     type="checkbox"
                     checked={saveConnection}
                     onChange={(e) => setSaveConnection(e.target.checked)}
@@ -339,7 +339,7 @@ export function ConnectionForm({
               {saveConnection && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="connectionName">Connection Name</label>
-                  <Input
+                  <Input variant="secondary" 
                     id="connectionName"
                     type="text"
                     value={name}
@@ -377,9 +377,9 @@ export function ConnectionForm({
               )}
 
               <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2 space-y-2">
+                <TextField className="col-span-2 space-y-2">
                   <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-host">Host</label>
-                  <Input
+                  <Input variant="secondary" 
                     id="ftp-host"
                     type="text"
                     value={ftpHost}
@@ -387,10 +387,10 @@ export function ConnectionForm({
                     placeholder="ftp.example.com"
                     required
                   />
-                </div>
-                <div className="space-y-2">
+                </TextField>
+                <TextField className="space-y-2">
                   <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-port">Port</label>
-                  <Input
+                  <Input variant="secondary" 
                     id="ftp-port"
                     type="number"
                     value={ftpPort.toString()}
@@ -398,13 +398,13 @@ export function ConnectionForm({
                     min={1}
                     max={65535}
                   />
-                </div>
+                </TextField>
               </div>
 
               {/* Anonymous checkbox */}
-              <div className="pt-1">
+              <TextField className="pt-1">
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
-                  <input
+                  <Input variant="secondary" 
                     type="checkbox"
                     checked={useAnonymous}
                     onChange={(e) => setUseAnonymous(e.target.checked)}
@@ -412,13 +412,13 @@ export function ConnectionForm({
                   />
                   Anonymous login
                 </label>
-              </div>
+              </TextField>
 
               {!useAnonymous && (
                 <>
-                  <div className="space-y-2">
+                  <TextField className="space-y-2">
                     <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-username">Username</label>
-                    <Input
+                    <Input variant="secondary" 
                       id="ftp-username"
                       type="text"
                       value={ftpUsername}
@@ -426,11 +426,11 @@ export function ConnectionForm({
                       placeholder="username"
                       required={!useAnonymous}
                     />
-                  </div>
+                  </TextField>
 
-                  <div className="space-y-2">
+                  <TextField className="space-y-2">
                     <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-password">Password</label>
-                    <Input
+                    <Input variant="secondary" 
                       id="ftp-password"
                       type="password"
                       value={ftpPassword}
@@ -438,7 +438,7 @@ export function ConnectionForm({
                       placeholder="password"
                       required={!useAnonymous}
                     />
-                  </div>
+                  </TextField>
                 </>
               )}
 

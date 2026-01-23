@@ -1,4 +1,5 @@
 mod ftp;
+mod local;
 mod sftp;
 mod ssh;
 mod state;
@@ -771,6 +772,23 @@ async fn ftp_upload_folder(
     Ok(progress)
 }
 
+// ============ Local File System Commands ============
+
+#[tauri::command]
+async fn local_list_dir(path: String) -> Result<Vec<local::browser::FileEntry>, String> {
+    local::browser::list_directory(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn local_get_home_dir() -> Result<String, String> {
+    local::browser::get_home_dir().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn local_get_downloads_dir() -> Result<String, String> {
+    local::browser::get_downloads_dir().map_err(|e| e.to_string())
+}
+
 // ============ Keychain Commands ============
 
 #[tauri::command]
@@ -824,6 +842,10 @@ pub fn run() {
             ftp_download,
             ftp_upload,
             ftp_upload_folder,
+            // Local File System
+            local_list_dir,
+            local_get_home_dir,
+            local_get_downloads_dir,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

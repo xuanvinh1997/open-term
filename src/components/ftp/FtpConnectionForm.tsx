@@ -38,18 +38,19 @@ export function FtpConnectionForm({ onConnected }: FtpConnectionFormProps) {
       <div className="form-row">
         <div className="form-group flex-grow">
           <label htmlFor="ftp-host">Host</label>
-          <input
+          <Input variant="secondary" 
             id="ftp-host"
             type="text"
             value={host}
             onChange={(e) => setHost(e.target.value)}
             placeholder="ftp.example.com"
             required
+            className="w-full px-3 py-2 bg-white dark:bg-neutral-800 border-2 border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 text-neutral-900 dark:text-neutral-100"
           />
         </div>
         <div className="form-group port-group">
           <label htmlFor="ftp-port">Port</label>
-          <input
+          <Input variant="secondary" 
             id="ftp-port"
             type="number"
             value={port}
@@ -58,13 +59,14 @@ export function FtpConnectionForm({ onConnected }: FtpConnectionFormProps) {
             min="1"
             max="65535"
             required
+            className="w-full px-3 py-2 bg-white dark:bg-neutral-800 border-2 border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 text-neutral-900 dark:text-neutral-100"
           />
         </div>
       </div>
 
       <div className="form-group">
         <label className="checkbox-label">
-          <input
+          <Input variant="secondary" 
             type="checkbox"
             checked={useAnonymous}
             onChange={(e) => setUseAnonymous(e.target.checked)}
@@ -77,24 +79,26 @@ export function FtpConnectionForm({ onConnected }: FtpConnectionFormProps) {
         <>
           <div className="form-group">
             <label htmlFor="ftp-username">Username</label>
-            <input
+            <Input variant="secondary" 
               id="ftp-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="username"
               required={!useAnonymous}
+              className="w-full px-3 py-2 bg-white dark:bg-neutral-800 border-2 border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 text-neutral-900 dark:text-neutral-100"
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="ftp-password">Password</label>
-            <input
+            <Input variant="secondary" 
               id="ftp-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="password"
+              className="w-full px-3 py-2 bg-white dark:bg-neutral-800 border-2 border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 text-neutral-900 dark:text-neutral-100"
             />
           </div>
         </>

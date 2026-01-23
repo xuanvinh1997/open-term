@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { TerminalTabs } from "../terminal/TerminalTabs";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "../theme/ThemeToggle";
@@ -15,6 +15,7 @@ import { Button } from "@heroui/react";
 export function MainLayout() {
   const { tabs, activeTabId } = useTerminalStore();
   const sidebarRef = useRef<PanelImperativeHandle>(null);
+  const [sidebarActiveTab, setSidebarActiveTab] = useState<"connections" | "sftp" | "ftp">("connections");
 
   // Find if the active tab is an SSH session
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
@@ -66,18 +67,26 @@ export function MainLayout() {
             collapsible={true}
             collapsedSize={0}
           >
-            <Sidebar activeSshSession={activeSshSession} />
+            <Sidebar 
+              activeSshSession={activeSshSession}
+              activeTab={sidebarActiveTab}
+              onActiveTabChange={setSidebarActiveTab}
+            />
           </Panel>
 
-          {/* Resize Handle */}
-          <PanelResizeHandle className="w-1 hover:cursor-auto bg-neutral-300 dark:bg-neutral-800 hover:bg-blue-600/50 transition-colors duration-200 outline-none flex justify-center items-center group cursor-col-resize z-10" />
+          {/* Resize Handle - only show when terminal is visible */}
+          {sidebarActiveTab !== "ftp" && (
+            <PanelResizeHandle className="w-1 hover:cursor-auto bg-neutral-300 dark:bg-neutral-800 hover:bg-blue-600/50 transition-colors duration-200 outline-none flex justify-center items-center group cursor-col-resize z-10" />
+          )}
 
-          {/* Terminal Panel */}
-          <Panel id="terminal" defaultSize={80} minSize={40}>
-            <div className="h-full flex flex-col overflow-hidden">
-              <TerminalTabs />
-            </div>
-          </Panel>
+          {/* Terminal Panel - hide only when FTP is active, keep visible for SFTP */}
+          {sidebarActiveTab !== "ftp" && (
+            <Panel id="terminal" defaultSize={80} minSize={40}>
+              <div className="h-full flex flex-col overflow-hidden">
+                <TerminalTabs />
+              </div>
+            </Panel>
+          )}
         </PanelGroup>
       </main>
     </div>

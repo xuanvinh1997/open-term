@@ -147,19 +147,44 @@ impl FtpTransfer {
         let metadata = std::fs::metadata(local_path)?;
         let total_size = metadata.len();
 
-        // Read file contents
+        // Open local file
         let mut local_file = File::open(local_path)?;
-        let mut buffer = Vec::new();
-        local_file.read_to_end(&mut buffer)?;
 
         // Check if cancelled
         if *self.cancelled.lock() {
             return Err(FtpTransferError::Cancelled);
         }
 
+        // Read file in chunks and track progress
+        let chunk_size = 32768usize; // 32KB chunks
+        let mut buffer = Vec::new();
+        let mut temp_buffer = vec![0u8; chunk_size];
+        let mut transferred: u64 = 0;
+
+        // Read entire file with progress updates
+        loop {
+            if *self.cancelled.lock() {
+                return Err(FtpTransferError::Cancelled);
+            }
+
+            let bytes_read = local_file.read(&mut temp_buffer)?;
+            if bytes_read == 0 {
+                break;
+            }
+
+            buffer.extend_from_slice(&temp_buffer[..bytes_read]);
+            transferred += bytes_read as u64;
+            
+            // Report progress during read
+            progress_callback(transferred / 2, total_size); // Show 0-50% during read
+        }
+
         // Upload using put_file
         let mut stream = self.stream.lock();
         let mut cursor = Cursor::new(&buffer);
+
+        // Report 50% before upload starts
+        progress_callback(total_size / 2, total_size);
 
         stream.put_file(remote_path, &mut cursor)
             .map_err(|e| FtpTransferError::Ftp(e.to_string()))?;

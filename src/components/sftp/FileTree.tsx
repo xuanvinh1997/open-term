@@ -8,6 +8,7 @@ import {
   VscFileMedia,
   VscArchive,
   VscTerminalBash,
+  VscCheck,
 } from "react-icons/vsc";
 import { cn } from "@/lib/utils";
 
@@ -16,9 +17,19 @@ interface FileTreeProps {
   currentPath: string;
   onNavigate: (path: string) => void;
   onDelete: (path: string, isDir: boolean) => void;
+  selectedFiles?: Set<string>;
+  onSelect?: (path: string, isMulti: boolean) => void;
+  onClearSelection?: () => void;
 }
 
-export function FileTree({ files, onNavigate, onDelete }: FileTreeProps) {
+export function FileTree({ 
+  files, 
+  onNavigate, 
+  onDelete, 
+  selectedFiles,
+  onSelect,
+  onClearSelection,
+}: FileTreeProps) {
   const getFileIcon = (file: FileEntry) => {
     if (file.file_type === "Directory") return <VscFolder className="text-amber-400" />;
     if (file.file_type === "Symlink") return <VscFileSymlinkFile className="text-purple-400" />;
@@ -82,8 +93,23 @@ export function FileTree({ files, onNavigate, onDelete }: FileTreeProps) {
     });
   };
 
-  const handleClick = (file: FileEntry) => {
+  const handleClick = (file: FileEntry, e: React.MouseEvent) => {
+    // Handle selection if enabled
+    if (onSelect) {
+      const isMulti = e.ctrlKey || e.metaKey || e.shiftKey;
+      onSelect(file.path, isMulti);
+      
+      // Don't navigate on selection click
+      if (isMulti) {
+        return;
+      }
+    }
+    
+    // Navigate to directory
     if (file.file_type === "Directory") {
+      if (onClearSelection) {
+        onClearSelection();
+      }
       onNavigate(file.path);
     }
   };
@@ -120,40 +146,56 @@ export function FileTree({ files, onNavigate, onDelete }: FileTreeProps) {
           </tr>
         </thead>
         <tbody>
-          {sortedFiles.map((file) => (
-            <tr
-              key={file.path}
-              className={cn(
-                "cursor-default border-b border-neutral-200 dark:border-neutral-700 transition-colors duration-150",
-                file.file_type === "Directory" && "cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
-              )}
-              onClick={() => handleClick(file)}
-              onContextMenu={(e) => handleContextMenu(e, file)}
-            >
-              <td className="py-2 px-4">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex-shrink-0 w-4 h-4">
-                    {getFileIcon(file)}
-                  </span>
-                  <span
-                    className={cn(
-                      "truncate text-sm text-neutral-800 dark:text-neutral-200",
-                      file.file_type === "Directory" && "text-blue-500 dark:text-blue-400 font-medium",
-                      file.file_type === "Symlink" && "text-purple-500 dark:text-purple-400 italic"
+          {sortedFiles.map((file) => {
+            const isSelected = selectedFiles?.has(file.path) || false;
+            
+            return (
+              <tr
+                key={file.path}
+                className={cn(
+                  "cursor-default border-b border-neutral-200 dark:border-neutral-700 transition-colors duration-150",
+                  file.file_type === "Directory" && "cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800",
+                  onSelect && "cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800",
+                  isSelected && "bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/40"
+                )}
+                onClick={(e) => handleClick(file, e)}
+                onContextMenu={(e) => handleContextMenu(e, file)}
+              >
+                <td className="py-2 px-4">
+                  <div className="flex items-center gap-2.5">
+                    {onSelect && (
+                      <span className={cn(
+                        "flex-shrink-0 w-4 h-4 flex items-center justify-center rounded border transition-colors",
+                        isSelected 
+                          ? "bg-blue-500 border-blue-500" 
+                          : "border-neutral-300 dark:border-neutral-600"
+                      )}>
+                        {isSelected && <VscCheck className="w-3 h-3 text-white" />}
+                      </span>
                     )}
-                  >
-                    {file.name}
-                  </span>
-                </div>
-              </td>
-              <td className="text-right text-neutral-600 dark:text-neutral-400 text-xs font-mono py-2 px-4">
-                {file.file_type === "Directory" ? "-" : formatSize(file.size)}
-              </td>
-              <td className="text-right text-neutral-600 dark:text-neutral-400 text-xs py-2 px-4">
-                {formatDate(file.modified)}
-              </td>
-            </tr>
-          ))}
+                    <span className="flex-shrink-0 w-4 h-4">
+                      {getFileIcon(file)}
+                    </span>
+                    <span
+                      className={cn(
+                        "truncate text-sm text-neutral-800 dark:text-neutral-200",
+                        file.file_type === "Directory" && "text-blue-500 dark:text-blue-400 font-medium",
+                        file.file_type === "Symlink" && "text-purple-500 dark:text-purple-400 italic"
+                      )}
+                    >
+                      {file.name}
+                    </span>
+                  </div>
+                </td>
+                <td className="text-right text-neutral-600 dark:text-neutral-400 text-xs font-mono py-2 px-4">
+                  {file.file_type === "Directory" ? "-" : formatSize(file.size)}
+                </td>
+                <td className="text-right text-neutral-600 dark:text-neutral-400 text-xs py-2 px-4">
+                  {formatDate(file.modified)}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

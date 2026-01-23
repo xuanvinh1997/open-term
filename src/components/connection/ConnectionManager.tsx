@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { useTerminalStore } from "../../stores/terminalStore";
-import { Button, Input, Modal} from "@heroui/react";
+import { Button, Input, Modal, TextField} from "@heroui/react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ConnectionProfile } from "../../types";
@@ -206,9 +206,9 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
                 </Modal.Header>
                 <Modal.Body className="py-4 gap-4">
                   {passwordPrompt?.needsPassword && (
-                    <div className="space-y-2">
+                    <TextField className="space-y-2">
                       <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="conn-password">Password</label>
-                      <Input
+                      <Input variant="secondary" 
                         id="conn-password"
                         type="password"
                         value={password}
@@ -216,12 +216,12 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
                         autoFocus
                         className="w-full h-10"
                       />
-                    </div>
+                    </TextField>
                   )}
                   {passwordPrompt?.needsPassphrase && (
-                    <div className="space-y-2">
+                    <TextField className="space-y-2">
                       <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="conn-passphrase">Key Passphrase</label>
-                      <Input
+                      <Input variant="secondary" 
                         id="conn-passphrase"
                         type="password"
                         value={passphrase}
@@ -232,7 +232,7 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
                       <p className="text-xs text-neutral-600 dark:text-neutral-400">
                         Leave empty if your key has no passphrase
                       </p>
-                    </div>
+                    </TextField>
                   )}
                 </Modal.Body>
                 <Modal.Footer>
