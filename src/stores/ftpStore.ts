@@ -6,6 +6,8 @@ import type { FileEntry, TransferProgress } from "../types";
 interface FtpState {
   ftpId: string | null;
   host: string;
+  connectionName: string | null;
+  connectionId: string | null;
   currentPath: string;
   files: FileEntry[];
   loading: boolean;
@@ -17,7 +19,9 @@ interface FtpState {
     host: string,
     port: number,
     username?: string,
-    password?: string
+    password?: string,
+    connectionName?: string,
+    connectionId?: string
   ) => Promise<void>;
   disconnect: () => Promise<void>;
   navigateTo: (path: string) => Promise<void>;
@@ -40,13 +44,15 @@ interface FtpState {
 export const useFtpStore = create<FtpState>((set, get) => ({
   ftpId: null,
   host: "",
+  connectionName: null,
+  connectionId: null,
   currentPath: "/",
   files: [],
   loading: false,
   error: null,
   transfers: [],
 
-  connect: async (host, port, username, password) => {
+  connect: async (host, port, username, password, connectionName, connectionId) => {
     set({ loading: true, error: null });
     try {
       const ftpId = await invoke<string>("ftp_connect", {
@@ -66,6 +72,8 @@ export const useFtpStore = create<FtpState>((set, get) => ({
       set({
         ftpId,
         host,
+        connectionName: connectionName || null,
+        connectionId: connectionId || null,
         currentPath,
         files,
         loading: false,

@@ -51,18 +51,36 @@ export function ConnectionManager({ onNewConnection, onOpenSftp, onOpenFtp }: Co
         }).catch(() => null);
 
         if (connection.anonymous) {
-          await ftpConnect(connection.host!, connection.port!);
+          await ftpConnect(
+            connection.host!,
+            connection.port!,
+            undefined,
+            undefined,
+            connection.name,
+            connection.id
+          );
         } else {
           await ftpConnect(
             connection.host!,
             connection.port!,
             connection.username!,
-            password || ""
+            password || "",
+            connection.name,
+            connection.id
           );
         }
 
+        // Add FTP tab
+        const ftpTabId = `ftp-${Date.now()}`;
+        useTerminalStore.getState().addFtpTab({
+          id: ftpTabId,
+          title: connection.name,
+          host: connection.host!,
+          connectionName: connection.name,
+          connectionId: connection.id,
+        });
+
         toast.success(`Connected to ${connection.name}`);
-        onOpenFtp();
       } catch (err) {
         toast.error(`FTP connection failed: ${String(err)}`);
       } finally {

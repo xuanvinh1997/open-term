@@ -1,6 +1,7 @@
 export type SessionType =
   | { type: "Local" }
-  | { type: "Ssh"; host: string; port: number; username: string };
+  | { type: "Ssh"; host: string; port: number; username: string }
+  | { type: "Ftp"; host: string; port: number; username?: string };
 
 export interface SessionInfo {
   id: string;
@@ -12,6 +13,14 @@ export interface TerminalTab {
   id: string;
   title: string;
   sessionInfo: SessionInfo;
+}
+
+export interface FtpTab {
+  id: string;
+  title: string;
+  host: string;
+  connectionName?: string;
+  connectionId?: string;
 }
 
 // Auth types

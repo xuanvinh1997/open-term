@@ -23,6 +23,7 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
   const {
     ftpId,
     host,
+    connectionName,
     currentPath,
     files,
     loading,
@@ -204,9 +205,23 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
       {/* Header */}
       <div className="border-b border-neutral-300 dark:border-neutral-700">
         <div className="flex items-center justify-between px-4 py-2.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-            FTP - {host}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+              FTP
+            </span>
+            {connectionName && (
+              <>
+                <span className="text-neutral-400 dark:text-neutral-600">•</span>
+                <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                  {connectionName}
+                </span>
+              </>
+            )}
+            <span className="text-neutral-400 dark:text-neutral-600">•</span>
+            <span className="text-xs text-neutral-600 dark:text-neutral-400">
+              {host}
+            </span>
+          </div>
           <Button
             variant="ghost"
             size="sm"

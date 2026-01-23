@@ -1,20 +1,24 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
-import type { SessionInfo, TerminalTab } from "../types";
+import type { SessionInfo, TerminalTab, FtpTab } from "../types";
 
 interface TerminalState {
   tabs: TerminalTab[];
+  ftpTabs: FtpTab[];
   activeTabId: string | null;
 
   // Actions
   createTerminal: () => Promise<string>;
   closeTerminal: (tabId: string) => Promise<void>;
+  addFtpTab: (ftpTab: FtpTab) => void;
+  closeFtpTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
   updateTabTitle: (tabId: string, title: string) => void;
 }
 
 export const useTerminalStore = create<TerminalState>((set, _get) => ({
   tabs: [],
+  ftpTabs: [],
   activeTabId: null,
 
   createTerminal: async () => {
@@ -32,6 +36,37 @@ export const useTerminalStore = create<TerminalState>((set, _get) => ({
     }));
 
     return newTab.id;
+  },
+
+  addFtpTab: (ftpTab: FtpTab) => {
+    set((state) => ({
+      ftpTabs: [...state.ftpTabs, ftpTab],
+      activeTabId: ftpTab.id,
+    }));
+  },
+
+  closeFtpTab: (tabId: string) => {
+    set((state) => {
+      const newFtpTabs = state.ftpTabs.filter((tab) => tab.id !== tabId);
+      let newActiveTabId = state.activeTabId;
+
+      if (state.activeTabId === tabId) {
+        const closedIndex = state.ftpTabs.findIndex((tab) => tab.id === tabId);
+        if (newFtpTabs.length > 0) {
+          newActiveTabId =
+            newFtpTabs[Math.min(closedIndex, newFtpTabs.length - 1)]?.id ?? null;
+        } else if (state.tabs.length > 0) {
+          newActiveTabId = state.tabs[0]?.id ?? null;
+        } else {
+          newActiveTabId = null;
+        }
+      }
+
+      return {
+        ftpTabs: newFtpTabs,
+        activeTabId: newActiveTabId,
+      };
+    });
   },
 
   closeTerminal: async (tabId: string) => {
