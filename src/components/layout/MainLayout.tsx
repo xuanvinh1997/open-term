@@ -79,7 +79,7 @@ export function MainLayout() {
             id="sidebar"
             // defaultSize={15}
             // minSize={15}
-            maxSize={500}
+            maxSize={400}
             className="bg-neutral-100 dark:bg-neutral-900 overflow-hidden flex flex-col"
             collapsible={true}
             collapsedSize={0}

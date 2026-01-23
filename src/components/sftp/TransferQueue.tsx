@@ -74,13 +74,13 @@ export function TransferQueue({ transfers }: TransferQueueProps) {
   }
 
   return (
-    <div className="border-t border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-300 dark:border-neutral-700">
+    <div className="border-t border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 flex flex-col max-h-80">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-300 dark:border-neutral-700 shrink-0">
         <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
           Transfers ({transfers.length})
         </span>
       </div>
-      <div className="max-h-48 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {transfers.map((transfer) => {
           const statusString = getStatusString(transfer.status);
           return (

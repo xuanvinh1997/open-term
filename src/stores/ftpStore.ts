@@ -92,8 +92,12 @@ export const useFtpStore = create<FtpState>((set, get) => ({
     set({
       ftpId: null,
       host: "",
+      connectionName: null,
+      connectionId: null,
       currentPath: "/",
       files: [],
+      error: null,
+      transfers: [],
     });
   },
 
@@ -204,6 +208,13 @@ export const useFtpStore = create<FtpState>((set, get) => ({
     const { ftpId } = get();
     if (!ftpId) return;
 
+    // Set up event listeners BEFORE invoking the upload command
+    const tempId = `${Date.now()}-${Math.random()}`;
+    
+    let progressUnsub: (() => void) | null = null;
+    let completeUnsub: (() => void) | null = null;
+    let errorUnsub: (() => void) | null = null;
+
     const progress = await invoke<TransferProgress>("ftp_upload", {
       ftpId,
       localPath,
@@ -215,7 +226,7 @@ export const useFtpStore = create<FtpState>((set, get) => ({
     }));
 
     // Listen for progress events
-    const progressUnsub = await listen<[number, number]>(
+    progressUnsub = await listen<[number, number]>(
       `ftp-transfer-progress-${progress.id}`,
       (event) => {
         get().updateTransferProgress(
@@ -226,24 +237,24 @@ export const useFtpStore = create<FtpState>((set, get) => ({
       }
     );
 
-    const completeUnsub = await listen<boolean>(
+    completeUnsub = await listen<boolean>(
       `ftp-transfer-complete-${progress.id}`,
       () => {
         get().completeTransfer(progress.id);
         get().refresh();
-        progressUnsub();
-        completeUnsub();
-        errorUnsub();
+        if (progressUnsub) progressUnsub();
+        if (completeUnsub) completeUnsub();
+        if (errorUnsub) errorUnsub();
       }
     );
 
-    const errorUnsub = await listen<string>(
+    errorUnsub = await listen<string>(
       `ftp-transfer-error-${progress.id}`,
       (event) => {
         get().failTransfer(progress.id, event.payload);
-        progressUnsub();
-        completeUnsub();
-        errorUnsub();
+        if (progressUnsub) progressUnsub();
+        if (completeUnsub) completeUnsub();
+        if (errorUnsub) errorUnsub();
       }
     );
   },
@@ -251,6 +262,10 @@ export const useFtpStore = create<FtpState>((set, get) => ({
   uploadFolder: async (localPath, remotePath) => {
     const { ftpId } = get();
     if (!ftpId) return;
+
+    let progressUnsub: (() => void) | null = null;
+    let completeUnsub: (() => void) | null = null;
+    let errorUnsub: (() => void) | null = null;
 
     const progress = await invoke<TransferProgress>("ftp_upload_folder", {
       ftpId,
@@ -263,7 +278,7 @@ export const useFtpStore = create<FtpState>((set, get) => ({
     }));
 
     // Listen for progress events
-    const progressUnsub = await listen<[number, number]>(
+    progressUnsub = await listen<[number, number]>(
       `ftp-transfer-progress-${progress.id}`,
       (event) => {
         get().updateTransferProgress(
@@ -274,24 +289,24 @@ export const useFtpStore = create<FtpState>((set, get) => ({
       }
     );
 
-    const completeUnsub = await listen<boolean>(
+    completeUnsub = await listen<boolean>(
       `ftp-transfer-complete-${progress.id}`,
       () => {
         get().completeTransfer(progress.id);
         get().refresh();
-        progressUnsub();
-        completeUnsub();
-        errorUnsub();
+        if (progressUnsub) progressUnsub();
+        if (completeUnsub) completeUnsub();
+        if (errorUnsub) errorUnsub();
       }
     );
 
-    const errorUnsub = await listen<string>(
+    errorUnsub = await listen<string>(
       `ftp-transfer-error-${progress.id}`,
       (event) => {
         get().failTransfer(progress.id, event.payload);
-        progressUnsub();
-        completeUnsub();
-        errorUnsub();
+        if (progressUnsub) progressUnsub();
+        if (completeUnsub) completeUnsub();
+        if (errorUnsub) errorUnsub();
       }
     );
   },
