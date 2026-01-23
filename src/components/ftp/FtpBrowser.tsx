@@ -3,6 +3,8 @@ import { useFtpStore } from "../../stores/ftpStore";
 import { FileTree } from "../sftp/FileTree";
 import { TransferQueue } from "../sftp/TransferQueue";
 import { open } from "@tauri-apps/plugin-dialog";
+import { Button } from "@heroui/react";
+import { cn } from "@/lib/utils";
 import {
   VscClose,
   VscChevronUp,
@@ -11,7 +13,6 @@ import {
   VscCloudUpload,
   VscFolderOpened,
 } from "react-icons/vsc";
-import "./FtpBrowser.css";
 
 interface FtpBrowserProps {
   onClose: () => void;
@@ -123,58 +124,99 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
   }
 
   return (
-    <div className="ftp-browser">
-      <div className="ftp-header">
-        <div className="ftp-title">
-          <span>FTP - {host}</span>
-          <button className="close-btn" onClick={handleClose} title="Disconnect">
-            <VscClose />
-          </button>
+    <div className="flex flex-col h-full bg-white dark:bg-neutral-900">
+      {/* Header */}
+      <div className="border-b border-neutral-300 dark:border-neutral-700">
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+            FTP - {host}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 hover:bg-red-100 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            onClick={handleClose}
+          >
+            <VscClose className="h-3.5 w-3.5" />
+          </Button>
         </div>
-        <div className="ftp-toolbar">
-          <div className="ftp-path">
-            <button
-              className="nav-btn"
-              onClick={handleNavigateUp}
-              disabled={currentPath === "/"}
-              title="Go up"
-            >
-              <VscChevronUp />
-            </button>
-            <span className="path-text">{currentPath}</span>
+
+        {/* Toolbar */}
+        <div className="flex items-center gap-2 px-4 pb-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+            onClick={handleNavigateUp}
+            isDisabled={currentPath === "/"}
+          >
+            <VscChevronUp className="h-4 w-4" />
+          </Button>
+          <div className="flex-1 px-3 py-1.5 text-xs font-mono text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 rounded-md border border-neutral-300 dark:border-neutral-700 truncate">
+            {currentPath}
           </div>
-          <div className="ftp-actions">
-            <button onClick={refresh} disabled={loading} title="Refresh">
-              <VscRefresh />
-            </button>
-            <button onClick={handleCreateFolder} title="New folder">
-              <VscNewFolder />
-            </button>
-            <button onClick={handleUploadFiles} title="Upload files">
-              <VscCloudUpload />
-            </button>
-            <button onClick={handleUploadFolder} title="Upload folder">
-              <VscFolderOpened />
-            </button>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              onClick={refresh}
+              isDisabled={loading}
+            >
+              <VscRefresh className={cn("h-4 w-4", loading && "animate-spin")} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              onClick={handleCreateFolder}
+            >
+              <VscNewFolder className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              onClick={handleUploadFiles}
+            >
+              <VscCloudUpload className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              onClick={handleUploadFolder}
+            >
+              <VscFolderOpened className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
 
-      {error && <div className="ftp-error">{error}</div>}
+      {error && (
+        <div className="mx-4 mt-3 p-2.5 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-md">
+          {error}
+        </div>
+      )}
 
       <div
-        className={`ftp-content ${isDragging ? "dragging" : ""}`}
+        className={cn(
+          "flex-1 overflow-hidden mx-4 my-3 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 relative transition-colors duration-200",
+          isDragging && "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+        )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         {isDragging && (
-          <div className="drop-overlay">
-            <div className="drop-message">Drop files here to upload</div>
+          <div className="absolute inset-0 flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 z-10 backdrop-blur-sm">
+            <span className="text-blue-600 dark:text-blue-400 font-medium text-sm">Drop files here to upload</span>
           </div>
         )}
         {loading && !files.length ? (
-          <div className="ftp-loading">Loading...</div>
+          <div className="flex items-center justify-center h-full text-neutral-600 dark:text-neutral-400 text-sm">
+            Loading...
+          </div>
         ) : (
           <FileTree
             files={files}

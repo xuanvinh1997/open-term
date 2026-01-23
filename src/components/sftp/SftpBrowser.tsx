@@ -3,7 +3,7 @@ import { useSftpStore } from "../../stores/sftpStore";
 import { FileTree } from "./FileTree";
 import { TransferQueue } from "./TransferQueue";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Button, Input, Modal, ModalContent, ModalHeader, ModalFooter } from "@heroui/react";
+import { Button, Input, Modal,  ModalHeader, ModalFooter } from "@heroui/react";
 import { toast } from "sonner";
 import {
   VscClose,
@@ -156,17 +156,17 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
   );
 
   return (
-    <div className="flex flex-col h-full bg-card">
+    <div className="flex flex-col h-full bg-white dark:bg-neutral-900">
       {/* Header */}
-      <div className="border-b border-border/60">
+      <div className="border-b border-neutral-300 dark:border-neutral-700">
         <div className="flex items-center justify-between px-4 py-2.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             SFTP Browser
           </span>
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive transition-colors"
+            className="h-6 w-6 p-0 hover:bg-red-100 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
             onClick={onClose}
           >
             <VscClose className="h-3.5 w-3.5" />
@@ -178,29 +178,29 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 hover:bg-accent"
+            className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
             onClick={handleNavigateUp}
-            disabled={currentPath === "/"}
+            isDisabled={currentPath === "/"}
           >
             <VscChevronUp className="h-4 w-4" />
           </Button>
-          <div className="flex-1 px-3 py-1.5 text-xs font-mono text-muted-foreground bg-background/50 rounded-md border border-border/50 truncate">
+          <div className="flex-1 px-3 py-1.5 text-xs font-mono text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 rounded-md border border-neutral-300 dark:border-neutral-700 truncate">
             {currentPath}
           </div>
           <div className="flex gap-1">
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-accent"
+              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
               onClick={refresh}
-              disabled={loading}
+              isDisabled={loading}
             >
               <VscRefresh className={cn("h-4 w-4", loading && "animate-spin")} />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-accent"
+              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
               onClick={handleCreateFolder}
             >
               <VscNewFolder className="h-4 w-4" />
@@ -208,7 +208,7 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-accent"
+              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
               onClick={handleUploadFiles}
             >
               <VscCloudUpload className="h-4 w-4" />
@@ -216,7 +216,7 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-accent"
+              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
               onClick={handleUploadFolder}
             >
               <VscFolderOpened className="h-4 w-4" />
@@ -227,7 +227,7 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
 
       {/* Error */}
       {error && (
-        <div className="mx-4 mt-3 p-2.5 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+        <div className="mx-4 mt-3 p-2.5 text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-md">
           {error}
         </div>
       )}
@@ -235,20 +235,20 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
       {/* File List */}
       <div
         className={cn(
-          "flex-1 overflow-hidden mx-4 my-3 rounded-lg border border-border/50 bg-background/30 relative transition-colors duration-200",
-          isDragging && "border-primary/60 bg-primary/5"
+          "flex-1 overflow-hidden mx-4 my-3 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 relative transition-colors duration-200",
+          isDragging && "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         {isDragging && (
-          <div className="absolute inset-0 flex items-center justify-center bg-primary/10 z-10 backdrop-blur-sm">
-            <span className="text-primary font-medium text-sm">Drop files here to upload</span>
+          <div className="absolute inset-0 flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 z-10 backdrop-blur-sm">
+            <span className="text-blue-600 dark:text-blue-400 font-medium text-sm">Drop files here to upload</span>
           </div>
         )}
         {loading && !files.length ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+          <div className="flex items-center justify-center h-full text-neutral-600 dark:text-neutral-400 text-sm">
             Loading...
           </div>
         ) : (
@@ -268,7 +268,7 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
 
       {/* New Folder Dialog */}
       <Modal isOpen={showNewFolderModal} onOpenChange={setShowNewFolderModal}>
-        <ModalContent className="sm:max-w-md">
+        <div className="sm:max-w-md">
           <ModalHeader>
             <span className="font-bold text-lg">Create New Folder</span>
           </ModalHeader>
@@ -284,7 +284,7 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
             <ModalFooter>
               <Button
                 type="button"
-                variant="light"
+                variant="ghost"
                 onPress={() => {
                   setShowNewFolderModal(false);
                   setNewFolderName("");
@@ -292,36 +292,15 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
               >
                 Cancel
               </Button>
-              <Button type="submit" isDisabled={creating} color="primary">
+              <Button type="submit" isDisabled={creating} className="bg-blue-600 text-white hover:bg-blue-700">
                 {creating ? "Creating..." : "Create"}
               </Button>
             </ModalFooter>
           </form>
-        </ModalContent>
+        </div>
       </Modal>
 
-      {/* Delete Confirmation */}
-      <Modal isOpen={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <ModalContent>
-          <ModalHeader>
-            <span className="font-bold text-lg">
-              Delete {deleteConfirm?.isDir ? "Folder" : "File"}
-            </span>
-            <p className="text-sm text-default-500">
-              Are you sure you want to delete "{deleteConfirm?.name}"? This action cannot be undone.
-            </p>
-          </ModalHeader>
-          <ModalFooter>
-            <Button variant="light">Cancel</Button>
-            <Button color="danger"
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { useTerminalStore } from "../../stores/terminalStore";
-import { Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
+import { Button, Input, Modal,  ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ConnectionProfile } from "../../types";
@@ -131,11 +131,11 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
 
   return (
     <div className="flex flex-col h-full w-full">
-      <div className="flex items-center justify-between h-10 border-b border-white/10 shrink-0 px-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground select-none">
+      <div className="flex items-center justify-between h-10 border-b border-neutral-300 dark:border-white/10 shrink-0 px-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 select-none">
           Connections
         </h3>
-        <Button size="sm" variant="flat" className="h-6 text-xs min-w-16 font-medium gap-1" onPress={onNewConnection}>
+        <Button size="sm" variant="ghost" className="h-6 text-xs min-w-16 bg-blue-500 text-white dark:bg-blue-600 dark:text-white hover:bg-blue-600 dark:hover:bg-blue-700 font-medium gap-1 flex" onPress={onNewConnection}>
           <VscAdd /> New
         </Button>
       </div>
@@ -145,11 +145,11 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
           Error: {error}
         </div>
       ) : loading ? (
-        <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+        <div className="flex items-center justify-center h-32 text-neutral-600 dark:text-neutral-400 text-sm">
           Loading...
         </div>
       ) : connections.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-32 text-muted-foreground/60 text-sm p-4">
+        <div className="flex flex-col items-center justify-center h-32 text-neutral-500 dark:text-neutral-400 text-sm p-4">
           <p className="font-medium">No saved connections</p>
           <p className="text-xs mt-2">Click "+ New" to add a connection</p>
         </div>
@@ -161,19 +161,19 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
                 key={conn.id}
                 className={cn(
                   "flex items-center px-3 py-2.5 cursor-pointer rounded-lg group transition-colors duration-150",
-                  "hover:bg-accent/50",
+                  "hover:bg-neutral-200 dark:hover:bg-neutral-700/50",
                   connectingId === conn.id && "opacity-50 pointer-events-none"
                 )}
                 onClick={() => handleConnect(conn)}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm text-foreground truncate font-medium">{conn.name}</div>
-                  <div className="text-xs text-muted-foreground/70 truncate mt-1">
+                  <div className="text-sm text-neutral-900 dark:text-neutral-100 truncate font-medium">{conn.name}</div>
+                  <div className="text-xs text-neutral-600 dark:text-neutral-400 truncate mt-1">
                     {conn.username}@{conn.host}:{conn.port} ({formatAuthType(conn.auth_method)})
                   </div>
                 </div>
                 <button
-                  className="p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 rounded transition-all"
+                  className="p-1.5 text-neutral-600 dark:text-neutral-400 opacity-0 group-hover:opacity-100 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
                   onClick={(e) => handleDelete(conn, e)}
                   title="Delete connection"
                 >
@@ -196,78 +196,44 @@ export function ConnectionManager({ onNewConnection }: ConnectionManagerProps) {
           }
         }}
       >
-        <ModalContent className="sm:max-w-sm">
+        <div className="sm:max-w-md">
           <form onSubmit={handlePasswordSubmit}>
-          <ModalHeader className="flex flex-col gap-1">
-            Authentication Required
-            <span className="text-sm font-normal text-default-500">{passwordPrompt?.connectionName}</span>
-          </ModalHeader>
-          <ModalBody>
-            {passwordPrompt?.needsPassword && (
-              <Input
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoFocus
-              />
-            )}
-            {passwordPrompt?.needsPassphrase && (
-              <div className="space-y-2">
-                <Input
-                  label="Key Passphrase"
-                  type="password"
-                  value={passphrase}
-                  onChange={(e) => setPassphrase(e.target.value)}
-                  autoFocus={!passwordPrompt?.needsPassword}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Leave empty if your key has no passphrase
-                </p>
-              </div>
-            )}
-          </ModalBody>
-          <ModalFooter className="gap-2">
-              <Button
-                type="button"
-                variant="light"
-                className="px-4"
-                onPress={() => {
-                  setPasswordPrompt(null);
-                  setPassword("");
-                  setPassphrase("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" isDisabled={!!connectingId} className="min-w-[100px]" color="primary">
-                {connectingId ? "Connecting..." : "Connect"}
-              </Button>
-          </ModalFooter>
+            <ModalBody className="py-4 gap-4">
+              {passwordPrompt?.needsPassword && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="conn-password">Password</label>
+                  <Input
+                    id="conn-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoFocus
+                    className="w-full h-10"
+                  />
+                </div>
+              )}
+              {passwordPrompt?.needsPassphrase && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="conn-passphrase">Key Passphrase</label>
+                  <Input
+                    id="conn-passphrase"
+                    type="password"
+                    value={passphrase}
+                    onChange={(e) => setPassphrase(e.target.value)}
+                    autoFocus={!passwordPrompt?.needsPassword}
+                    className="w-full h-10"
+                  />
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                    Leave empty if your key has no passphrase
+                  </p>
+                </div>
+              )}
+            </ModalBody>
+           
           </form>
-        </ModalContent>
+        </div>
       </Modal>
 
-      {/* Delete Confirmation */}
-      <Modal isOpen={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">Delete Connection</ModalHeader>
-          <ModalBody>
-            <p className="text-sm text-default-500">
-              Are you sure you want to delete "{deleteConfirm?.name}"? This action cannot be undone.
-            </p>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="light" onPress={() => setDeleteConfirm(null)}>Cancel</Button>
-            <Button
-              onPress={confirmDelete}
-              color="danger"
-            >
-              Delete
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
     </div>
   );
 }

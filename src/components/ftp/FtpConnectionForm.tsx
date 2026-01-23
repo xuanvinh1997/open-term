@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useFtpStore } from "../../stores/ftpStore";
-import "./FtpConnectionForm.css";
 
 interface FtpConnectionFormProps {
   onConnected: () => void;

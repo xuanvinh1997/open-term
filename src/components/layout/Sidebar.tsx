@@ -34,21 +34,20 @@ export function Sidebar({ activeSshSession }: SidebarProps) {
   };
 
   const tabClass = (isActive: boolean) => cn(
-    "w-[52px] h-[44px] flex items-center justify-center bg-transparent border-0 cursor-pointer transition-all border-l-2 my-0.5 text-foreground",
+    "w-[52px] h-[44px] flex items-center justify-center bg-transparent border-0 cursor-pointer transition-all border-l-2 my-0.5 text-neutral-700 dark:text-neutral-300",
     isActive 
-      ? "opacity-100 bg-[var(--card)] border-l-[var(--primary)]" 
-      : "opacity-50 border-l-transparent hover:opacity-100 hover:bg-[#333]",
+      ? "opacity-100 bg-neutral-300 dark:bg-neutral-800 border-l-blue-500" 
+      : "opacity-50 border-l-transparent hover:opacity-100 hover:bg-neutral-300/50 dark:hover:bg-neutral-800",
     "disabled:opacity-25 disabled:cursor-not-allowed"
   );
 
   return (
-    <div className="flex w-full h-full min-w-0 overflow-hidden bg-[var(--card)]">
-      <div className="flex flex-col shrink-0 w-[52px] bg-neutral-900 border-r border-[#3c3c3c] pt-1">
+    <div className="flex w-full h-full min-w-0 overflow-hidden bg-neutral-100 dark:bg-neutral-800">
+      <div className="flex flex-col shrink-0 w-[52px] bg-neutral-200 dark:bg-neutral-900 border-r border-neutral-300 dark:border-neutral-700 pt-1">
         <button
           className={tabClass(activeTab === "connections")}
           onClick={() => {
             setActiveTab("connections");
-            // console.log("connections");
           }}
           title="Connections"
         >
@@ -94,7 +93,7 @@ export function Sidebar({ activeSshSession }: SidebarProps) {
         )}
 
         {activeTab === "sftp" && !activeSshSession && (
-          <div className="flex flex-col items-center justify-center h-full p-6 text-center text-muted-foreground text-sm leading-normal">
+          <div className="flex flex-col items-center justify-center h-full p-6 text-center text-neutral-600 dark:text-neutral-400 text-sm leading-normal">
             <p>Connect to an SSH server to browse files via SFTP.</p>
           </div>
         )}
@@ -108,8 +107,8 @@ export function Sidebar({ activeSshSession }: SidebarProps) {
         )}
 
         {activeTab === "ftp" && !ftpId && (
-          <div className="flex flex-col items-center justify-center h-full p-6 text-center text-muted-foreground text-sm leading-normal">
-            <p className="text-muted-foreground text-sm mb-4">
+          <div className="flex flex-col items-center justify-center h-full p-6 text-center text-neutral-600 dark:text-neutral-400 text-sm leading-normal">
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-4">
               Connect to an FTP server to browse files.
             </p>
             <Button

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { useTerminalStore } from "../../stores/terminalStore";
 import { useFtpStore } from "../../stores/ftpStore";
-import { Button, Input, Modal, ModalContent, ModalHeader, ModalBody, Tabs, Tab } from "@heroui/react";
+import { Button, Input } from "@heroui/react";
 import { toast } from "sonner";
 import type { AuthMethod } from "../../types";
 
@@ -167,24 +167,55 @@ export function ConnectionForm({
   };
 
   return (
-    <Modal isOpen={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-      <ModalContent className="sm:max-w-md">
-        <ModalHeader>New Connection</ModalHeader>
-        <ModalBody>
-        <Tabs
-          selectedKey={connectionType}
-          onSelectionChange={(v) => {
-            setConnectionType(v as "ssh" | "ftp");
-            setError(null);
-          }}
-          className="w-full"
-          fullWidth
-        >
-          {/* SSH Form */}
-          <Tab key="ssh" title="SSH">
+    <div
+      className={`fixed inset-0 z-50 ${open ? 'flex' : 'hidden'} items-center justify-center bg-black/50`}
+      onClick={handleClose}
+    >
+      <div
+        className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4">
+          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">New Connection</h2>
+        </div>
+        
+        <div className="p-6">
+          {/* Tab Selection */}
+          <div className="flex border-b border-neutral-200 dark:border-neutral-700 mb-6">
+            <button
+              type="button"
+              onClick={() => {
+                setConnectionType("ssh");
+                setError(null);
+              }}
+              className={`px-4 py-2 font-medium text-sm transition-colors ${
+                connectionType === "ssh"
+                  ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
+                  : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200"
+              }`}
+            >
+              SSH
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setConnectionType("ftp");
+                setError(null);
+              }}
+              className={`px-4 py-2 font-medium text-sm transition-colors ${
+                connectionType === "ftp"
+                  ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
+                  : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200"
+              }`}
+            >
+              FTP
+            </button>
+          </div>
+
+          {connectionType === "ssh" && (
             <form onSubmit={handleSshConnect} className="space-y-4">
               {error && connectionType === "ssh" && (
-                <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5 text-destructive text-sm">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-lg px-3 py-2.5 text-red-700 dark:text-red-400 text-sm">
                   {error}
                 </div>
               )}
@@ -233,7 +264,7 @@ export function ConnectionForm({
                   {(["password", "publickey", "agent"] as const).map((type) => (
                     <label
                       key={type}
-                      className="flex items-center gap-1.5 cursor-pointer text-sm text-muted-foreground"
+                      className="flex items-center gap-1.5 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400"
                     >
                       <input
                         type="radio"
@@ -293,7 +324,7 @@ export function ConnectionForm({
 
               {/* Save connection checkbox */}
               <div className="pt-2">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
                   <input
                     type="checkbox"
                     checked={saveConnection}
@@ -319,28 +350,28 @@ export function ConnectionForm({
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex justify-end gap-3 pt-6 border-t border-neutral-200 dark:border-neutral-700 mt-4">
                 <Button
                   type="button"
-                  variant="ghost"
+                  // variant="light"
                   onClick={handleClose}
-                  disabled={connecting}
+                  isDisabled={connecting}
                   className="px-5"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" isDisabled={connecting} className="min-w-[110px]" color="primary">
+                <Button type="submit" isDisabled={connecting} className="min-w-[110px]">
                   {connecting ? "Connecting..." : "Connect"}
                 </Button>
               </div>
             </form>
-          </Tab>
+          )}
 
           {/* FTP Form */}
-          <Tab key="ftp" title="FTP">
+          {connectionType === "ftp" && (
             <form onSubmit={handleFtpConnect} className="space-y-4">
               {error && connectionType === "ftp" && (
-                <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5 text-destructive text-sm">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-lg px-3 py-2.5 text-red-700 dark:text-red-400 text-sm">
                   {error}
                 </div>
               )}
@@ -372,7 +403,7 @@ export function ConnectionForm({
 
               {/* Anonymous checkbox */}
               <div className="pt-1">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
                   <input
                     type="checkbox"
                     checked={useAnonymous}
@@ -405,17 +436,18 @@ export function ConnectionForm({
                       value={ftpPassword}
                       onChange={(e) => setFtpPassword(e.target.value)}
                       placeholder="password"
+                      required={!useAnonymous}
                     />
                   </div>
                 </>
               )}
 
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex justify-end gap-3 pt-6 border-t border-neutral-200 dark:border-neutral-700 mt-4">
                 <Button
                   type="button"
-                  variant="ghost"
+                  // variant="light"
                   onClick={handleClose}
-                  disabled={connecting}
+                  isDisabled={connecting}
                   className="px-5"
                 >
                   Cancel
@@ -424,16 +456,15 @@ export function ConnectionForm({
                   type="submit"
                   isDisabled={connecting || !ftpHost}
                   className="min-w-[110px]"
-                  color="primary"
+                  // color="primary"
                 >
                   {connecting ? "Connecting..." : "Connect"}
                 </Button>
               </div>
             </form>
-          </Tab>
-        </Tabs>
-        </ModalBody>
-      </ModalContent>
-    </Modal>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

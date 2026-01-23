@@ -1,4 +1,5 @@
 import { TransferProgress, TransferStatus } from "../../types";
+import { cn } from "@/lib/utils";
 import {
   VscCloudUpload,
   VscCloudDownload,
@@ -8,7 +9,6 @@ import {
   VscCircleSlash,
   VscSync,
 } from "react-icons/vsc";
-import "./TransferQueue.css";
 
 interface TransferQueueProps {
   transfers: TransferProgress[];
@@ -30,12 +30,12 @@ function getStatusString(status: TransferStatus): string {
 
 export function TransferQueue({ transfers }: TransferQueueProps) {
   const getStatusIcon = (status: TransferStatus) => {
-    if (status === "Pending") return <VscWatch />;
-    if (status === "InProgress") return <VscSync className="spinning" />;
-    if (status === "Completed") return <VscCheck />;
-    if (status === "Cancelled") return <VscCircleSlash />;
-    if (isFailedStatus(status)) return <VscError />;
-    return <VscWatch />;
+    if (status === "Pending") return <VscWatch className="text-yellow-500" />;
+    if (status === "InProgress") return <VscSync className="animate-spin text-blue-500" />;
+    if (status === "Completed") return <VscCheck className="text-green-500" />;
+    if (status === "Cancelled") return <VscCircleSlash className="text-neutral-500" />;
+    if (isFailedStatus(status)) return <VscError className="text-red-500" />;
+    return <VscWatch className="text-neutral-500" />;
   };
 
   const getDirectionIcon = (isUpload: boolean) => {
@@ -74,41 +74,53 @@ export function TransferQueue({ transfers }: TransferQueueProps) {
   }
 
   return (
-    <div className="transfer-queue">
-      <div className="transfer-queue-header">
-        <span>Transfers ({transfers.length})</span>
+    <div className="border-t border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-300 dark:border-neutral-700">
+        <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          Transfers ({transfers.length})
+        </span>
       </div>
-      <div className="transfer-list">
-        {transfers.map((transfer) => (
-          <div key={transfer.id} className={`transfer-item status-${getStatusString(transfer.status)}`}>
-            <div className="transfer-info">
-              <span className="transfer-direction" title={transfer.is_upload ? "Upload" : "Download"}>
-                {getDirectionIcon(transfer.is_upload)}
-              </span>
-              <span className="transfer-name" title={transfer.filename}>
-                {transfer.filename}
-              </span>
-              <span className="transfer-status">
-                {getStatusIcon(transfer.status)}
-              </span>
-            </div>
-            {(transfer.status === "InProgress" || transfer.status === "Pending") && (
-              <div className="transfer-progress">
-                <div
-                  className="progress-bar"
-                  style={{
-                    width: `${Math.min(100, transfer.total_bytes > 0
-                      ? Math.round((transfer.transferred_bytes / transfer.total_bytes) * 100)
-                      : 0)}%`,
-                  }}
-                />
+      <div className="max-h-48 overflow-y-auto">
+        {transfers.map((transfer) => {
+          const statusString = getStatusString(transfer.status);
+          return (
+            <div
+              key={transfer.id}
+              className={cn(
+                "px-4 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0",
+                statusString === "completed" && "bg-green-50 dark:bg-green-900/10",
+                statusString === "failed" && "bg-red-50 dark:bg-red-900/10"
+              )}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="flex-shrink-0 text-neutral-600 dark:text-neutral-400" title={transfer.is_upload ? "Upload" : "Download"}>
+                  {getDirectionIcon(transfer.is_upload)}
+                </span>
+                <span className="flex-1 text-sm text-neutral-900 dark:text-neutral-100 truncate" title={transfer.filename}>
+                  {transfer.filename}
+                </span>
+                <span className="flex-shrink-0">
+                  {getStatusIcon(transfer.status)}
+                </span>
               </div>
-            )}
-            <div className="transfer-details">
-              {getStatusDetails(transfer)}
+              {(transfer.status === "InProgress" || transfer.status === "Pending") && (
+                <div className="h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden mb-1">
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-300"
+                    style={{
+                      width: `${Math.min(100, transfer.total_bytes > 0
+                        ? Math.round((transfer.transferred_bytes / transfer.total_bytes) * 100)
+                        : 0)}%`,
+                    }}
+                  />
+                </div>
+              )}
+              <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                {getStatusDetails(transfer)}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

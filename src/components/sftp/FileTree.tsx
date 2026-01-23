@@ -9,14 +9,6 @@ import {
   VscArchive,
   VscTerminalBash,
 } from "react-icons/vsc";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableColumn,
-  TableHeader,
-  TableRow,
-} from "@heroui/react";
 import { cn } from "@/lib/utils";
 
 interface FileTreeProps {
@@ -69,7 +61,7 @@ export function FileTree({ files, onNavigate, onDelete }: FileTreeProps) {
       case "zsh":
         return <VscTerminalBash className="text-green-400" />;
       default:
-        return <VscFile className="text-muted-foreground" />;
+        return <VscFile className="text-neutral-500 dark:text-neutral-400" />;
     }
   };
 
@@ -110,7 +102,7 @@ export function FileTree({ files, onNavigate, onDelete }: FileTreeProps) {
 
   if (files.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full py-16 text-muted-foreground/60">
+      <div className="flex flex-col items-center justify-center h-full py-16 text-neutral-400 dark:text-neutral-500">
         <VscFolder className="w-14 h-14 mb-4 opacity-40" />
         <p className="text-sm font-medium">Empty directory</p>
       </div>
@@ -119,49 +111,51 @@ export function FileTree({ files, onNavigate, onDelete }: FileTreeProps) {
 
   return (
     <div className="h-full overflow-auto">
-      <Table aria-label="File Tree" removeWrapper isCompact>
-        <TableHeader>
-            <TableColumn className="text-xs font-semibold text-default-500">Name</TableColumn>
-            <TableColumn className="text-right text-xs font-semibold text-default-500">Size</TableColumn>
-            <TableColumn className="text-right text-xs font-semibold text-default-500">Modified</TableColumn>
-        </TableHeader>
-        <TableBody>
+      <table className="w-full border-collapse">
+        <thead className="sticky top-0 bg-white dark:bg-neutral-900 z-10">
+          <tr>
+            <th className="text-left text-xs font-semibold text-neutral-500 dark:text-neutral-400 py-2 px-4 border-b border-neutral-200 dark:border-neutral-700">Name</th>
+            <th className="text-right text-xs font-semibold text-neutral-500 dark:text-neutral-400 py-2 px-4 border-b border-neutral-200 dark:border-neutral-700">Size</th>
+            <th className="text-right text-xs font-semibold text-neutral-500 dark:text-neutral-400 py-2 px-4 border-b border-neutral-200 dark:border-neutral-700">Modified</th>
+          </tr>
+        </thead>
+        <tbody>
           {sortedFiles.map((file) => (
-            <TableRow
+            <tr
               key={file.path}
               className={cn(
-                "cursor-default border-border/30 transition-colors duration-150",
-                file.file_type === "Directory" && "cursor-pointer hover:bg-accent/50"
+                "cursor-default border-b border-neutral-200 dark:border-neutral-700 transition-colors duration-150",
+                file.file_type === "Directory" && "cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
               )}
               onClick={() => handleClick(file)}
               onContextMenu={(e) => handleContextMenu(e, file)}
             >
-              <TableCell className="py-2 px-4">
+              <td className="py-2 px-4">
                 <div className="flex items-center gap-2.5">
                   <span className="flex-shrink-0 w-4 h-4">
                     {getFileIcon(file)}
                   </span>
                   <span
                     className={cn(
-                      "truncate text-sm",
-                      file.file_type === "Directory" && "text-blue-400 font-medium",
-                      file.file_type === "Symlink" && "text-purple-400 italic"
+                      "truncate text-sm text-neutral-800 dark:text-neutral-200",
+                      file.file_type === "Directory" && "text-blue-500 dark:text-blue-400 font-medium",
+                      file.file_type === "Symlink" && "text-purple-500 dark:text-purple-400 italic"
                     )}
                   >
                     {file.name}
                   </span>
                 </div>
-              </TableCell>
-              <TableCell className="text-right text-muted-foreground/70 text-xs font-mono py-2 px-4">
+              </td>
+              <td className="text-right text-neutral-600 dark:text-neutral-400 text-xs font-mono py-2 px-4">
                 {file.file_type === "Directory" ? "-" : formatSize(file.size)}
-              </TableCell>
-              <TableCell className="text-right text-muted-foreground/70 text-xs py-2 px-4">
+              </td>
+              <td className="text-right text-neutral-600 dark:text-neutral-400 text-xs py-2 px-4">
                 {formatDate(file.modified)}
-              </TableCell>
-            </TableRow>
+              </td>
+            </tr>
           ))}
-        </TableBody>
-      </Table>
+        </tbody>
+      </table>
     </div>
   );
 }
