@@ -132,11 +132,26 @@ export type VncInputEvent =
   | { type: "key"; key: number; down: boolean };
 
 // RDP types
+export type RdpQuality = "High" | "Medium" | "Fast";
+
 export type RdpInputEvent =
   | { type: "mouse_move"; x: number; y: number }
   | { type: "mouse_button"; button: number; down: boolean; x: number; y: number }
   | { type: "mouse_wheel"; delta: number; x: number; y: number }
   | { type: "keyboard"; scancode: number; down: boolean };
+
+// RDP frame update types - for efficient dirty rectangle updates
+export interface DirtyRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  data: string; // Base64-encoded RGBA pixels
+}
+
+export type FrameUpdate =
+  | { type: "Full"; width: number; height: number; data: string } // Base64-encoded
+  | { type: "Partial"; rects: DirtyRect[] };
 
 export interface TransferProgress {
   id: string;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import type { RdpInputEvent } from "../../types";
+import type { RdpInputEvent, FrameUpdate } from "../../types";
 import { toast } from "sonner";
 
 interface RdpViewerProps {
@@ -51,17 +51,45 @@ export function RdpViewer({ sessionId, width, height, isActive }: RdpViewerProps
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Configure canvas for better quality rendering
+    ctx.imageSmoothingEnabled = false;  // Disable smoothing for crisp pixels
+    ctx.imageSmoothingQuality = "high";  // Use high quality when smoothing is needed
+
     let unlistenFrame: UnlistenFn | null = null;
     let unlistenError: UnlistenFn | null = null;
 
+    // Helper to decode Base64 to Uint8ClampedArray
+    const decodeBase64 = (base64: string): Uint8ClampedArray => {
+      const binaryString = atob(base64);
+      const bytes = new Uint8ClampedArray(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes;
+    };
+
     const setupListeners = async () => {
-      // Frame updates
-      unlistenFrame = await listen<number[]>(
+      // Frame updates - handles both full frames and dirty rectangles
+      unlistenFrame = await listen<FrameUpdate>(
         `rdp-frame-${sessionId}`,
         (event) => {
-          const data = new Uint8ClampedArray(event.payload);
-          const imageData = new ImageData(data, width, height);
-          ctx.putImageData(imageData, 0, 0);
+          const update = event.payload;
+          
+          if (update.type === "Full") {
+            // Full frame update - decode Base64
+            const data = decodeBase64(update.data);
+            const imageData = new ImageData(data, update.width, update.height);
+            ctx.putImageData(imageData, 0, 0);
+          } else if (update.type === "Partial") {
+            // Dirty rectangle updates - much more efficient with Base64
+            for (const rect of update.rects) {
+              if (rect.width > 0 && rect.height > 0 && rect.data.length > 0) {
+                const data = decodeBase64(rect.data);
+                const imageData = new ImageData(data, rect.width, rect.height);
+                ctx.putImageData(imageData, rect.x, rect.y);
+              }
+            }
+          }
         }
       );
 
@@ -247,6 +275,7 @@ export function RdpViewer({ sessionId, width, height, isActive }: RdpViewerProps
           maxHeight: "100%",
           objectFit: "contain",
           cursor: "default",
+          imageRendering: "pixelated",  // Crisp pixel rendering for better quality
         }}
         tabIndex={0}
       />

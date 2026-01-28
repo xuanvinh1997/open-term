@@ -43,6 +43,7 @@ impl RdpClient {
         domain: Option<&str>,
         width: u16,
         height: u16,
+        quality: super::RdpQuality,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let addr = format!("{}:{}", host, port);
         eprintln!("RDP: Connecting to {} as {}...", addr, username);
@@ -60,7 +61,32 @@ impl RdpClient {
             .local_addr()
             .map_err(|e| format!("Failed to get local address: {}", e))?;
 
-        // Build connector config with all required fields
+        // Performance flags based on quality preset
+        use ironrdp_pdu::rdp::client_info::PerformanceFlags;
+        let perf_flags = match quality {
+            super::RdpQuality::High => {
+                // Highest quality - minimal performance flags
+                PerformanceFlags::ENABLE_FONT_SMOOTHING 
+                    | PerformanceFlags::ENABLE_DESKTOP_COMPOSITION
+            },
+            super::RdpQuality::Medium => {
+                // Balanced - some optimizations but keep visual quality
+                PerformanceFlags::DISABLE_WALLPAPER
+                    | PerformanceFlags::DISABLE_FULLWINDOWDRAG
+                    | PerformanceFlags::ENABLE_FONT_SMOOTHING
+                    | PerformanceFlags::ENABLE_DESKTOP_COMPOSITION
+            },
+            super::RdpQuality::Fast => {
+                // Performance focused - aggressive optimizations
+                PerformanceFlags::DISABLE_WALLPAPER
+                    | PerformanceFlags::DISABLE_FULLWINDOWDRAG
+                    | PerformanceFlags::DISABLE_MENUANIMATIONS
+                    | PerformanceFlags::DISABLE_THEMING
+                    | PerformanceFlags::ENABLE_FONT_SMOOTHING
+            },
+        };
+
+        // Build connector config with optimized settings
         let config = ironrdp_connector::Config {
             credentials: Credentials::UsernamePassword {
                 username: username.to_string(),
@@ -78,7 +104,19 @@ impl RdpClient {
             keyboard_functional_keys_count: 12,
             keyboard_layout: 0x409, // US English
             ime_file_name: String::new(),
-            bitmap: None,
+            bitmap: Some(ironrdp_connector::BitmapConfig {
+                lossy_compression: match quality {
+                    super::RdpQuality::High => false,    // Lossless for highest quality
+                    super::RdpQuality::Medium => false,  // Lossless for good quality 
+                    super::RdpQuality::Fast => true,     // Allow lossy for performance
+                },
+                color_depth: match quality {
+                    super::RdpQuality::High => 32,    // Full 32-bit color
+                    super::RdpQuality::Medium => 24,  // Good 24-bit color
+                    super::RdpQuality::Fast => 16,    // Fast 16-bit color
+                },
+                codecs: ironrdp_pdu::rdp::capability_sets::BitmapCodecs::default(), // Use default codecs
+            }),
             dig_product_id: String::new(),
             client_dir: String::new(),
             platform: MajorPlatformType::WINDOWS,
@@ -86,7 +124,7 @@ impl RdpClient {
             request_data: None,
             autologon: true,
             enable_audio_playback: false,
-            performance_flags: ironrdp_pdu::rdp::client_info::PerformanceFlags::default(),
+            performance_flags: perf_flags,
             license_cache: None,
             timezone_info: ironrdp_pdu::rdp::client_info::TimezoneInfo::default(),
             enable_server_pointer: true,
@@ -218,8 +256,8 @@ impl RdpClient {
     }
 
     /// Process incoming RDP events and update the framebuffer
-    /// Returns the current RGBA frame data if there was an update
-    pub fn process_events(&self) -> Result<Option<Vec<u8>>, String> {
+    /// Returns dirty rectangles if there were updates
+    pub fn process_events(&self) -> Result<Option<Vec<super::DirtyRect>>, String> {
         if !self.is_connected() {
             return Ok(None);
         }
@@ -261,6 +299,7 @@ impl RdpClient {
 
         let mut frame_updated = false;
         let mut responses: Vec<Vec<u8>> = Vec::new();
+        let mut dirty_rects: Vec<super::DirtyRect> = Vec::new();
 
         for output in outputs {
             match output {
@@ -268,9 +307,38 @@ impl RdpClient {
                     // Collect responses to send later
                     responses.push(frame);
                 }
-                ActiveStageOutput::GraphicsUpdate(_region) => {
-                    // Graphics were updated
+                ActiveStageOutput::GraphicsUpdate(region) => {
+                    // Graphics were updated - capture the dirty region
                     frame_updated = true;
+                    
+                    // Extract region data from image buffer
+                    let image = self.image.lock();
+                    let full_data = image.data();
+                    let full_width = self.width as usize;
+                    
+                    let x = region.left as usize;
+                    let y = region.top as usize;
+                    let w = (region.right - region.left) as usize;
+                    let h = (region.bottom - region.top) as usize;
+                    
+                    // Extract just the dirty region pixels
+                    let mut rect_data = Vec::with_capacity(w * h * 4);
+                    for row in y..(y + h) {
+                        let start = (row * full_width + x) * 4;
+                        let end = start + w * 4;
+                        if end <= full_data.len() {
+                            rect_data.extend_from_slice(&full_data[start..end]);
+                        }
+                    }
+                    
+                    // Use Base64-encoded DirtyRect
+                    dirty_rects.push(super::DirtyRect::new(
+                        region.left as u16,
+                        region.top as u16,
+                        w as u16,
+                        h as u16,
+                        &rect_data,
+                    ));
                 }
                 ActiveStageOutput::PointerDefault | ActiveStageOutput::PointerHidden => {
                     // Pointer updates
@@ -303,8 +371,12 @@ impl RdpClient {
             }
         }
 
-        // Return whether frame was updated (don't copy data here - get_frame will be called if needed)
-        Ok(if frame_updated { Some(vec![]) } else { None })
+        // Return dirty rectangles if there were updates
+        Ok(if frame_updated && !dirty_rects.is_empty() {
+            Some(dirty_rects)
+        } else {
+            None
+        })
     }
 
     /// Send mouse movement event

@@ -22,6 +22,7 @@ interface RdpState {
     domain?: string,
     width?: number,
     height?: number,
+    quality?: import("../types").RdpQuality,
     connectionName?: string,
     connectionId?: string
   ) => Promise<string>;
@@ -49,6 +50,7 @@ export const useRdpStore = create<RdpState>((set, get) => ({
     domain,
     width = 1920,
     height = 1080,
+    quality = "High" as const,
     connectionName,
     connectionId
   ) => {
@@ -62,6 +64,7 @@ export const useRdpStore = create<RdpState>((set, get) => ({
         domain: domain || null,
         width,
         height,
+        quality,
       });
 
       set({

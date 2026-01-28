@@ -27,8 +27,9 @@ impl RdpManager {
         domain: Option<&str>,
         width: u16,
         height: u16,
+        quality: super::RdpQuality,
     ) -> Result<(u16, u16), String> {
-        let client = RdpClient::connect(host, port, username, password, domain, width, height)
+        let client = RdpClient::connect(host, port, username, password, domain, width, height, quality)
             .map_err(|e| format!("RDP connection failed: {}", e))?;
 
         let w = client.width();
@@ -48,28 +49,32 @@ impl RdpManager {
             .clone();
 
         let session_id = session_id.to_string();
+        let width = client.width();
+        let height = client.height();
 
         thread::spawn(move || {
             let mut frame_count = 0;
-            let mut pending_update = false;
+            let mut pending_rects: Vec<super::DirtyRect> = Vec::new();
             let mut last_frame_time = std::time::Instant::now();
-            let frame_interval = Duration::from_millis(50); // ~20 FPS max to reduce data transfer
+            let frame_interval = Duration::from_millis(13); // ~75 FPS for dirty rects (Base64 is efficient)
             
             eprintln!("RDP: Starting frame reader for session {}", session_id);
             
             while client.is_connected() {
-                // Process RDP events - this accumulates updates in the image buffer
+                // Process RDP events - collect dirty rectangles
                 match client.process_events() {
-                    Ok(Some(_)) => {
-                        // Frame was updated, mark as pending
-                        pending_update = true;
+                    Ok(Some(mut rects)) => {
+                        // Accumulate dirty rectangles
+                        pending_rects.append(&mut rects);
                     }
                     Ok(None) => {
-                        // No update from server - send initial frame if needed
+                        // No update from server - send initial full frame if needed
                         if frame_count == 0 {
                             let frame_data = client.get_frame();
+                            // Use Base64-encoded full frame
+                            let update = super::FrameUpdate::full(width, height, &frame_data);
                             let event_name = format!("rdp-frame-{}", session_id);
-                            if let Err(e) = app_handle.emit(&event_name, &frame_data) {
+                            if let Err(e) = app_handle.emit(&event_name, &update) {
                                 eprintln!("RDP: Failed to emit initial frame: {}", e);
                             }
                             frame_count = 1;
@@ -83,25 +88,26 @@ impl RdpManager {
                     }
                 }
                 
-                // Send pending update if enough time has passed (throttle frame rate)
-                if pending_update && last_frame_time.elapsed() >= frame_interval {
-                    let frame_data = client.get_frame();
+                // Send accumulated dirty rectangles if enough time has passed
+                if !pending_rects.is_empty() && last_frame_time.elapsed() >= frame_interval {
+                    let update = super::FrameUpdate::Partial {
+                        rects: std::mem::take(&mut pending_rects),
+                    };
                     let event_name = format!("rdp-frame-{}", session_id);
-                    if let Err(e) = app_handle.emit(&event_name, &frame_data) {
-                        eprintln!("RDP: Failed to emit frame: {}", e);
+                    if let Err(e) = app_handle.emit(&event_name, &update) {
+                        eprintln!("RDP: Failed to emit frame update: {}", e);
                         break;
                     }
-                    pending_update = false;
                     frame_count += 1;
                     last_frame_time = std::time::Instant::now();
                     
-                    if frame_count % 60 == 0 {
-                        eprintln!("RDP: Sent {} frames for session {}", frame_count, session_id);
+                    if frame_count % 100 == 0 {
+                        eprintln!("RDP: Sent {} frame updates for session {}", frame_count, session_id);
                     }
                 }
 
-                // Small sleep to prevent CPU spinning
-                thread::sleep(Duration::from_millis(5));
+                // Minimal sleep - read timeout handles pacing
+                thread::sleep(Duration::from_millis(1));
             }
             
             eprintln!("RDP: Frame reader stopped for session {}", session_id);

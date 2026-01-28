@@ -972,8 +972,10 @@ async fn rdp_connect(
     domain: Option<String>,
     width: u16,
     height: u16,
+    quality: Option<rdp::RdpQuality>,
 ) -> Result<String, String> {
     let session_id = uuid::Uuid::new_v4().to_string();
+    let quality = quality.unwrap_or(rdp::RdpQuality::High);  // Default to high quality
     rdp_manager.create_session(
         session_id.clone(),
         &host,
@@ -983,6 +985,7 @@ async fn rdp_connect(
         domain.as_deref(),
         width,
         height,
+        quality,
     )?;
 
     rdp_manager.start_frame_reader(&session_id, app_handle)?;

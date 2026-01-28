@@ -51,3 +51,4 @@ ironrdp-graphics = "0.7"
 ironrdp-session = "0.8"
 ironrdp-connector = "0.8"
 
+base64 = "0.22"

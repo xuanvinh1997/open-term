@@ -67,6 +67,8 @@ export function ConnectionForm({
   const [rdpUsername, setRdpUsername] = useState("");
   const [rdpPassword, setRdpPassword] = useState("");
   const [rdpDomain, setRdpDomain] = useState("");
+  const [rdpResolution, setRdpResolution] = useState("1920x1080");
+  const [rdpQuality, setRdpQuality] = useState<"High" | "Medium" | "Fast">("High");
   const [saveRdpConnection, setSaveRdpConnection] = useState(true);
 
   const { saveConnection: saveConn, saveFtpConnection: saveFtpConn, saveVncConnection: saveVncConn, saveRdpConnection: saveRdpConn, connectDirect } = useConnectionStore();
@@ -107,6 +109,8 @@ export function ConnectionForm({
     setRdpUsername("");
     setRdpPassword("");
     setRdpDomain("");
+    setRdpResolution("1920x1080");
+    setRdpQuality("High");
     setSaveRdpConnection(false);
   };
 
@@ -282,6 +286,9 @@ export function ConnectionForm({
         );
       }
 
+      // Parse resolution
+      const [width, height] = rdpResolution.split('x').map(Number);
+
       // Connect
       const rdpSessionId = await rdpConnect(
         rdpHost,
@@ -289,8 +296,9 @@ export function ConnectionForm({
         rdpUsername,
         rdpPassword,
         rdpDomain || undefined,
-        1920,
-        1080
+        width,
+        height,
+        rdpQuality
       );
 
       // Add RDP tab using the session ID from the backend
@@ -298,8 +306,8 @@ export function ConnectionForm({
         id: rdpSessionId,
         title: saveRdpConnection && rdpName ? rdpName : `${rdpHost}:${rdpPort}`,
         host: rdpHost,
-        width: 1920,
-        height: 1080,
+        width,
+        height,
       });
 
       toast.success(`Successfully connected to ${rdpHost}`);
@@ -827,6 +835,37 @@ export function ConnectionForm({
                   onChange={(e) => setRdpDomain(e.target.value)}
                   placeholder="DOMAIN"
                 />
+              </TextField>
+
+              <TextField className="space-y-2">
+                <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-resolution">Resolution</label>
+                <select 
+                  id="rdp-resolution"
+                  value={rdpResolution}
+                  onChange={(e) => setRdpResolution(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-600 rounded-lg bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="1920x1080">1920×1080 (Full HD)</option>
+                  <option value="1600x900">1600×900 (HD+)</option>
+                  <option value="1366x768">1366×768 (HD)</option>
+                  <option value="1280x720">1280×720 (HD Ready)</option>
+                  <option value="1024x768">1024×768 (XGA)</option>
+                  <option value="800x600">800×600 (SVGA)</option>
+                </select>
+              </TextField>
+
+              <TextField className="space-y-2">
+                <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-quality">Image Quality</label>
+                <select 
+                  id="rdp-quality"
+                  value={rdpQuality}
+                  onChange={(e) => setRdpQuality(e.target.value as "High" | "Medium" | "Fast")}
+                  className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-600 rounded-lg bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="High">High Quality (32-bit, lossless)</option>
+                  <option value="Medium">Medium Quality (24-bit, lossless)</option>
+                  <option value="Fast">Fast Performance (16-bit, lossy)</option>
+                </select>
               </TextField>
 
               <div className="pt-2">

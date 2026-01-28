@@ -159,6 +159,7 @@ export function ConnectionManager({ onNewConnection, onOpenSftp: _onOpenSftp, on
           (connection as any).domain || undefined,
           1920,
           1080,
+          "High",  // Default to high quality
           connection.name,
           connection.id
         );
@@ -256,6 +257,7 @@ export function ConnectionManager({ onNewConnection, onOpenSftp: _onOpenSftp, on
           (passwordPrompt.connection as any).domain || undefined,
           1920,
           1080,
+          "High",  // Default to high quality
           passwordPrompt.connectionName,
           passwordPrompt.connectionId
         );
