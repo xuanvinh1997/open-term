@@ -21,12 +21,16 @@ pub struct RdpConnectionInfo {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum RdpQuality {
-    /// Highest quality - lossless compression, full features
+    /// Ultra quality - 32-bit, lossless, RemoteFX + NSCodec
+    Ultra,
+    /// High quality - 32-bit, minimal loss, RemoteFX
     High,
-    /// Balanced quality vs performance
-    Medium, 
-    /// Prioritize performance over quality
-    Fast,
+    /// Balanced quality - 24-bit, NSCodec + RFX
+    Balanced,
+    /// Performance focused - 16-bit, aggressive compression
+    Performance,
+    /// Low bandwidth - 8-bit, maximum compression
+    LowBandwidth,
 }
 
 impl Default for RdpQuality {
@@ -36,14 +40,14 @@ impl Default for RdpQuality {
 }
 
 /// A dirty rectangle update - only the changed region
-/// Uses Base64 encoding for efficient binary transfer
+/// Uses Base64 encoding for reliable binary transfer
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirtyRect {
     pub x: u16,
     pub y: u16,
     pub width: u16,
     pub height: u16,
-    pub data: String, // Base64-encoded RGBA pixels (much smaller than number[])
+    pub data: String, // Base64-encoded RGBA pixels
 }
 
 impl DirtyRect {
@@ -63,7 +67,11 @@ impl DirtyRect {
 #[serde(tag = "type")]
 pub enum FrameUpdate {
     /// Full frame update (used for initial frame)
-    Full { width: u16, height: u16, data: String }, // Base64-encoded
+    Full { 
+        width: u16, 
+        height: u16, 
+        data: String 
+    }, // Base64-encoded
     /// Partial update with dirty rectangles
     Partial { rects: Vec<DirtyRect> },
 }

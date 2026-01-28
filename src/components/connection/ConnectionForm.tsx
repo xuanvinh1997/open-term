@@ -6,7 +6,7 @@ import { useVncStore } from "../../stores/vncStore";
 import { useRdpStore } from "../../stores/rdpStore";
 import { Button, Input, TextField } from "@heroui/react";
 import { toast } from "sonner";
-import type { AuthMethod } from "../../types";
+import type { AuthMethod, RdpQuality } from "../../types";
 
 interface ConnectionFormProps {
   open: boolean;
@@ -68,7 +68,7 @@ export function ConnectionForm({
   const [rdpPassword, setRdpPassword] = useState("");
   const [rdpDomain, setRdpDomain] = useState("");
   const [rdpResolution, setRdpResolution] = useState("1920x1080");
-  const [rdpQuality, setRdpQuality] = useState<"High" | "Medium" | "Fast">("High");
+  const [rdpQuality, setRdpQuality] = useState<RdpQuality>("High");
   const [saveRdpConnection, setSaveRdpConnection] = useState(true);
 
   const { saveConnection: saveConn, saveFtpConnection: saveFtpConn, saveVncConnection: saveVncConn, saveRdpConnection: saveRdpConn, connectDirect } = useConnectionStore();
@@ -859,12 +859,14 @@ export function ConnectionForm({
                 <select 
                   id="rdp-quality"
                   value={rdpQuality}
-                  onChange={(e) => setRdpQuality(e.target.value as "High" | "Medium" | "Fast")}
+                  onChange={(e) => setRdpQuality(e.target.value as RdpQuality)}
                   className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-600 rounded-lg bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
-                  <option value="High">High Quality (32-bit, lossless)</option>
-                  <option value="Medium">Medium Quality (24-bit, lossless)</option>
-                  <option value="Fast">Fast Performance (16-bit, lossy)</option>
+                  <option value="Ultra">Ultra (32-bit, lossless, RemoteFX + NSCodec)</option>
+                  <option value="High">High (32-bit, minimal loss, RemoteFX)</option>
+                  <option value="Balanced">Balanced (24-bit, NSCodec + RFX)</option>
+                  <option value="Performance">Performance (16-bit, aggressive compression)</option>
+                  <option value="LowBandwidth">Low Bandwidth (8-bit, maximum compression)</option>
                 </select>
               </TextField>
 

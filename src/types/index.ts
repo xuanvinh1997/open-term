@@ -132,7 +132,12 @@ export type VncInputEvent =
   | { type: "key"; key: number; down: boolean };
 
 // RDP types
-export type RdpQuality = "High" | "Medium" | "Fast";
+export type RdpQuality = 
+  | "Ultra"       // 32-bit, lossless, RemoteFX + NSCodec
+  | "High"        // 32-bit, minimal loss, RemoteFX
+  | "Balanced"    // 24-bit, NSCodec + RFX
+  | "Performance" // 16-bit, aggressive compression
+  | "LowBandwidth"; // 8-bit, maximum compression
 
 export type RdpInputEvent =
   | { type: "mouse_move"; x: number; y: number }

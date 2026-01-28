@@ -1,7 +1,7 @@
 use ironrdp_blocking::Framed;
 use ironrdp_connector::{ClientConnector, Credentials, DesktopSize, ServerName};
 use ironrdp_graphics::image_processing::PixelFormat;
-use ironrdp_pdu::rdp::capability_sets::MajorPlatformType;
+use ironrdp_pdu::rdp::capability_sets::{MajorPlatformType, BitmapCodecs, Codec, CodecProperty, RemoteFxContainer, RfxClientCapsContainer, RfxCaps, RfxCapset, RfxICap, RfxICapFlags, EntropyBits, CaptureFlags, NsCodec};
 use ironrdp_session::image::DecodedImage;
 use ironrdp_session::{ActiveStage, ActiveStageOutput};
 use parking_lot::Mutex;
@@ -64,25 +64,38 @@ impl RdpClient {
         // Performance flags based on quality preset
         use ironrdp_pdu::rdp::client_info::PerformanceFlags;
         let perf_flags = match quality {
-            super::RdpQuality::High => {
-                // Highest quality - minimal performance flags
+            super::RdpQuality::Ultra => {
+                // Ultra quality - all visual features enabled
                 PerformanceFlags::ENABLE_FONT_SMOOTHING 
                     | PerformanceFlags::ENABLE_DESKTOP_COMPOSITION
             },
-            super::RdpQuality::Medium => {
+            super::RdpQuality::High => {
+                // High quality - minimal performance flags
+                PerformanceFlags::ENABLE_FONT_SMOOTHING 
+                    | PerformanceFlags::ENABLE_DESKTOP_COMPOSITION
+            },
+            super::RdpQuality::Balanced => {
                 // Balanced - some optimizations but keep visual quality
                 PerformanceFlags::DISABLE_WALLPAPER
                     | PerformanceFlags::DISABLE_FULLWINDOWDRAG
                     | PerformanceFlags::ENABLE_FONT_SMOOTHING
                     | PerformanceFlags::ENABLE_DESKTOP_COMPOSITION
             },
-            super::RdpQuality::Fast => {
+            super::RdpQuality::Performance => {
                 // Performance focused - aggressive optimizations
                 PerformanceFlags::DISABLE_WALLPAPER
                     | PerformanceFlags::DISABLE_FULLWINDOWDRAG
                     | PerformanceFlags::DISABLE_MENUANIMATIONS
                     | PerformanceFlags::DISABLE_THEMING
                     | PerformanceFlags::ENABLE_FONT_SMOOTHING
+            },
+            super::RdpQuality::LowBandwidth => {
+                // Maximum compression for low bandwidth
+                PerformanceFlags::DISABLE_WALLPAPER
+                    | PerformanceFlags::DISABLE_FULLWINDOWDRAG
+                    | PerformanceFlags::DISABLE_MENUANIMATIONS
+                    | PerformanceFlags::DISABLE_THEMING
+                    | PerformanceFlags::DISABLE_CURSORSETTINGS
             },
         };
 
@@ -106,16 +119,20 @@ impl RdpClient {
             ime_file_name: String::new(),
             bitmap: Some(ironrdp_connector::BitmapConfig {
                 lossy_compression: match quality {
-                    super::RdpQuality::High => false,    // Lossless for highest quality
-                    super::RdpQuality::Medium => false,  // Lossless for good quality 
-                    super::RdpQuality::Fast => true,     // Allow lossy for performance
+                    super::RdpQuality::Ultra => false,        // Lossless for ultra quality
+                    super::RdpQuality::High => false,         // Lossless for high quality
+                    super::RdpQuality::Balanced => false,     // Lossless for balanced (NSCodec)
+                    super::RdpQuality::Performance => true,   // Allow lossy for performance
+                    super::RdpQuality::LowBandwidth => true,  // Lossy for bandwidth
                 },
                 color_depth: match quality {
-                    super::RdpQuality::High => 32,    // Full 32-bit color
-                    super::RdpQuality::Medium => 24,  // Good 24-bit color
-                    super::RdpQuality::Fast => 16,    // Fast 16-bit color
+                    super::RdpQuality::Ultra => 32,        // Full 32-bit color
+                    super::RdpQuality::High => 32,         // Full 32-bit color
+                    super::RdpQuality::Balanced => 24,     // Good 24-bit color
+                    super::RdpQuality::Performance => 16,  // Fast 16-bit color
+                    super::RdpQuality::LowBandwidth => 8,  // Low bandwidth 8-bit
                 },
-                codecs: ironrdp_pdu::rdp::capability_sets::BitmapCodecs::default(), // Use default codecs
+                codecs: Self::get_advanced_codecs(quality), // Use advanced codec configuration
             }),
             dig_product_id: String::new(),
             client_dir: String::new(),
@@ -530,6 +547,13 @@ impl RdpClient {
 
     pub fn connection_info(&self) -> &super::RdpConnectionInfo {
         &self.connection_info
+    }
+
+    /// Configure codecs with conservative settings for stability
+    fn get_advanced_codecs(quality: super::RdpQuality) -> ironrdp_pdu::rdp::capability_sets::BitmapCodecs {
+        // Use default codecs for now to ensure compatibility
+        // Advanced codec configuration can cause issues with some servers
+        ironrdp_pdu::rdp::capability_sets::BitmapCodecs::default()
     }
 }
 

@@ -4082,6 +4082,7 @@ dependencies = [
  "parking_lot",
  "portable-pty",
  "serde",
+ "serde_bytes",
  "serde_json",
  "ssh2",
  "suppaftp",

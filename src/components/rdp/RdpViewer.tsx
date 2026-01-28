@@ -81,7 +81,7 @@ export function RdpViewer({ sessionId, width, height, isActive }: RdpViewerProps
             const imageData = new ImageData(data, update.width, update.height);
             ctx.putImageData(imageData, 0, 0);
           } else if (update.type === "Partial") {
-            // Dirty rectangle updates - much more efficient with Base64
+            // Dirty rectangle updates - decode Base64
             for (const rect of update.rects) {
               if (rect.width > 0 && rect.height > 0 && rect.data.length > 0) {
                 const data = decodeBase64(rect.data);

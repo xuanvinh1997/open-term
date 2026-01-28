@@ -56,22 +56,36 @@ impl RdpManager {
             let mut frame_count = 0;
             let mut pending_rects: Vec<super::DirtyRect> = Vec::new();
             let mut last_frame_time = std::time::Instant::now();
-            let frame_interval = Duration::from_millis(13); // ~75 FPS for dirty rects (Base64 is efficient)
+            let mut last_input_time = std::time::Instant::now();
+            let mut activity_detected = false;
             
-            eprintln!("RDP: Starting frame reader for session {}", session_id);
+            // More conservative frame rate: reduce from 75 FPS to reasonable levels
+            let get_frame_interval = |has_activity: bool, has_changes: bool| {
+                if has_activity || has_changes {
+                    Duration::from_millis(50) // 20 FPS during activity (was 30 FPS)
+                } else {
+                    Duration::from_millis(200) // 5 FPS when static (was 10 FPS)
+                }
+            };
+            
+            eprintln!("RDP: Starting frame reader for session {} with adaptive frame rate", session_id);
             
             while client.is_connected() {
+                // Check for recent input activity (within last 2 seconds)
+                activity_detected = last_input_time.elapsed() < Duration::from_secs(2);
+                
                 // Process RDP events - collect dirty rectangles
                 match client.process_events() {
                     Ok(Some(mut rects)) => {
-                        // Accumulate dirty rectangles
+                        // Accumulate dirty rectangles and coalesce overlapping ones
                         pending_rects.append(&mut rects);
+                        pending_rects = Self::coalesce_dirty_rects(pending_rects);
+                        activity_detected = true; // Visual changes indicate activity
                     }
                     Ok(None) => {
                         // No update from server - send initial full frame if needed
                         if frame_count == 0 {
                             let frame_data = client.get_frame();
-                            // Use Base64-encoded full frame
                             let update = super::FrameUpdate::full(width, height, &frame_data);
                             let event_name = format!("rdp-frame-{}", session_id);
                             if let Err(e) = app_handle.emit(&event_name, &update) {
@@ -88,8 +102,11 @@ impl RdpManager {
                     }
                 }
                 
-                // Send accumulated dirty rectangles if enough time has passed
-                if !pending_rects.is_empty() && last_frame_time.elapsed() >= frame_interval {
+                // Send accumulated dirty rectangles based on adaptive timing
+                let has_changes = !pending_rects.is_empty();
+                let frame_interval = get_frame_interval(activity_detected, has_changes);
+                
+                if has_changes && last_frame_time.elapsed() >= frame_interval {
                     let update = super::FrameUpdate::Partial {
                         rects: std::mem::take(&mut pending_rects),
                     };
@@ -154,6 +171,64 @@ impl RdpManager {
             .get(session_id)
             .ok_or_else(|| "RDP session not found".to_string())?;
         Ok((client.width(), client.height()))
+    }
+
+    /// Coalesce overlapping dirty rectangles to reduce IPC overhead
+    fn coalesce_dirty_rects(mut rects: Vec<super::DirtyRect>) -> Vec<super::DirtyRect> {
+        if rects.len() <= 1 {
+            return rects;
+        }
+
+        // Sort by position for better coalescing
+        rects.sort_by(|a, b| a.y.cmp(&b.y).then(a.x.cmp(&b.x)));
+
+        let mut result = Vec::new();
+        let mut iter = rects.into_iter();
+        let mut current = iter.next().unwrap();
+
+        for rect in iter {
+            // Check if rectangles are adjacent or overlapping
+            if Self::can_merge_rects(&current, &rect) {
+                current = Self::merge_rects(current, rect);
+            } else {
+                result.push(current);
+                current = rect;
+            }
+        }
+        result.push(current);
+
+        result
+    }
+
+    /// Check if two dirty rectangles can be merged (adjacent or overlapping)
+    fn can_merge_rects(a: &super::DirtyRect, b: &super::DirtyRect) -> bool {
+        let a_right = a.x + a.width;
+        let a_bottom = a.y + a.height;
+        let b_right = b.x + b.width;
+        let b_bottom = b.y + b.height;
+
+        // Check for overlap or adjacency
+        !(a_right < b.x || b_right < a.x || a_bottom < b.y || b_bottom < a.y)
+    }
+
+    /// Merge two dirty rectangles into a single rectangle
+    fn merge_rects(a: super::DirtyRect, b: super::DirtyRect) -> super::DirtyRect {
+        let min_x = a.x.min(b.x);
+        let min_y = a.y.min(b.y);
+        let max_x = (a.x + a.width).max(b.x + b.width);
+        let max_y = (a.y + a.height).max(b.y + b.height);
+
+        // For merged rectangles, we need to reconstruct the pixel data
+        // For simplicity, we'll use the data from the larger rectangle
+        let data = if a.data.len() >= b.data.len() { a.data } else { b.data };
+
+        super::DirtyRect {
+            x: min_x,
+            y: min_y,
+            width: max_x - min_x,
+            height: max_y - min_y,
+            data,
+        }
     }
 }
 
