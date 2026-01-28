@@ -42,6 +42,18 @@ pub enum ConnectionType {
         username: Option<String>,
         anonymous: bool,
     },
+    #[serde(rename = "vnc")]
+    Vnc {
+        host: String,
+        port: u16,
+    },
+    #[serde(rename = "rdp")]
+    Rdp {
+        host: String,
+        port: u16,
+        username: String,
+        domain: Option<String>,
+    },
 }
 
 // Old format for backward compatibility
@@ -159,6 +171,44 @@ impl ConnectionProfile {
         }
     }
 
+    pub fn new_vnc(
+        name: String,
+        host: String,
+        port: u16,
+    ) -> Self {
+        Self {
+            id: Uuid::new_v4().to_string(),
+            name,
+            connection_type: ConnectionType::Vnc {
+                host,
+                port,
+            },
+            created_at: Utc::now(),
+            last_used: None,
+        }
+    }
+
+    pub fn new_rdp(
+        name: String,
+        host: String,
+        port: u16,
+        username: String,
+        domain: Option<String>,
+    ) -> Self {
+        Self {
+            id: Uuid::new_v4().to_string(),
+            name,
+            connection_type: ConnectionType::Rdp {
+                host,
+                port,
+                username,
+                domain,
+            },
+            created_at: Utc::now(),
+            last_used: None,
+        }
+    }
+
     pub fn to_auth_method(&self, password: Option<String>, passphrase: Option<String>) -> AuthMethod {
         match &self.connection_type {
             ConnectionType::Ssh { auth_method, .. } => match auth_method {
@@ -177,6 +227,12 @@ impl ConnectionProfile {
             },
             ConnectionType::Ftp { .. } => {
                 // FTP connections don't use SSH auth
+                AuthMethod::Password {
+                    password: password.unwrap_or_default(),
+                }
+            }
+            ConnectionType::Vnc { .. } | ConnectionType::Rdp { .. } => {
+                // VNC and RDP don't use SSH auth
                 AuthMethod::Password {
                     password: password.unwrap_or_default(),
                 }

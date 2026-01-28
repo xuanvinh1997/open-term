@@ -1,17 +1,18 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useSftpStore } from "../../stores/sftpStore";
 import { FileTree } from "./FileTree";
 import { TransferQueue } from "./TransferQueue";
+import { Terminal } from "../terminal/Terminal";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Button, Input, Modal } from "@heroui/react";
 import { toast } from "sonner";
 import {
-  VscClose,
   VscChevronUp,
   VscRefresh,
   VscNewFolder,
   VscCloudUpload,
   VscFolderOpened,
+  VscHome,
 } from "react-icons/vsc";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +21,7 @@ interface SftpBrowserProps {
   onClose: () => void;
 }
 
-export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
+export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) {
   const {
     currentPath,
     files,
@@ -37,7 +38,6 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
     uploadFolder,
   } = useSftpStore();
 
-  const [isDragging, setIsDragging] = useState(false);
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -59,8 +59,8 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
     navigateTo(parentPath);
   };
 
-  const handleCreateFolder = async () => {
-    setShowNewFolderModal(true);
+  const handleNavigateHome = () => {
+    navigateTo("~");
   };
 
   const handleCreateFolderSubmit = async (e: React.FormEvent) => {
@@ -128,143 +128,120 @@ export function SftpBrowser({ sessionId, onClose }: SftpBrowserProps) {
     }
   };
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      toast.info("Please use the upload button to select files or folders.");
-    }
-  }, []);
-
   const activeTransfers = transfers.filter(
     (t) => t.status === "InProgress" || t.status === "Pending"
   );
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-neutral-900">
-      {/* Header */}
-      <div className="border-b border-neutral-300 dark:border-neutral-700">
-        <div className="flex items-center justify-between px-4 py-2.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-            SFTP Browser
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 hover:bg-red-100 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-            onClick={onClose}
-          >
-            <VscClose className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-
-        {/* Toolbar */}
-        <div className="flex items-center gap-2 px-4 pb-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
-            onClick={handleNavigateUp}
-            isDisabled={currentPath === "/"}
-          >
-            <VscChevronUp className="h-4 w-4" />
-          </Button>
-          <div className="flex-1 px-3 py-1.5 text-xs font-mono text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 rounded-md border-2 border-neutral-400 dark:border-neutral-600 truncate">
-            {currentPath}
-          </div>
-          <div className="flex gap-1">
+      {/* Main Content - Split View */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* File Browser - Left Side */}
+        <div className="w-[30%] flex flex-col border-r border-neutral-300 dark:border-neutral-700">
+          {/* File Browser Toolbar */}
+          <div className="flex items-center gap-1 px-2 py-2 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              className="h-7 w-7 p-0 min-w-0"
+              onClick={handleNavigateHome}
+              aria-label="Go to home"
+            >
+              <VscHome className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 min-w-0"
+              onClick={handleNavigateUp}
+              isDisabled={currentPath === "/"}
+              aria-label="Go up"
+            >
+              <VscChevronUp className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 min-w-0"
               onClick={refresh}
               isDisabled={loading}
+              aria-label="Refresh"
             >
-              <VscRefresh className={cn("h-4 w-4", loading && "animate-spin")} />
+              <VscRefresh className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+            </Button>
+            <div className="w-px h-4 bg-neutral-300 dark:bg-neutral-600 mx-1" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 min-w-0"
+              onClick={() => setShowNewFolderModal(true)}
+              aria-label="New folder"
+            >
+              <VscNewFolder className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
-              onClick={handleCreateFolder}
-            >
-              <VscNewFolder className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              className="h-7 w-7 p-0 min-w-0"
               onClick={handleUploadFiles}
+              aria-label="Upload files"
             >
-              <VscCloudUpload className="h-4 w-4" />
+              <VscCloudUpload className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              className="h-7 w-7 p-0 min-w-0"
               onClick={handleUploadFolder}
+              aria-label="Upload folder"
             >
-              <VscFolderOpened className="h-4 w-4" />
+              <VscFolderOpened className="h-3.5 w-3.5" />
             </Button>
           </div>
+
+          {/* Path Bar */}
+          <div className="px-2 py-1.5 bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+            <div className="text-xs font-mono text-neutral-600 dark:text-neutral-400 truncate" title={currentPath}>
+              {currentPath}
+            </div>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="mx-2 mt-2 p-2 text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded">
+              {error}
+            </div>
+          )}
+
+          {/* File List */}
+          <div className="flex-1 overflow-hidden">
+            {loading && !files.length ? (
+              <div className="flex items-center justify-center h-full text-neutral-500 dark:text-neutral-400 text-sm">
+                Loading...
+              </div>
+            ) : (
+              <FileTree
+                files={files}
+                currentPath={currentPath}
+                onNavigate={navigateTo}
+                onDelete={handleDelete}
+              />
+            )}
+          </div>
+
+          {/* Transfer Queue */}
+          {activeTransfers.length > 0 && (
+            <TransferQueue transfers={activeTransfers} />
+          )}
+        </div>
+
+        {/* Terminal - Right Side */}
+        <div className="w-[70%] flex flex-col">
+          <div className="flex-1 overflow-hidden">
+            <Terminal sessionId={sessionId} isActive={true} />
+          </div>
         </div>
       </div>
-
-      {/* Error */}
-      {error && (
-        <div className="mx-4 mt-3 p-2.5 text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-md">
-          {error}
-        </div>
-      )}
-
-      {/* File List */}
-      <div
-        className={cn(
-          "flex-1 overflow-hidden mx-4 my-3 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 relative transition-colors duration-200",
-          isDragging && "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-        )}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        {isDragging && (
-          <div className="absolute inset-0 flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 z-10 backdrop-blur-sm">
-            <span className="text-blue-600 dark:text-blue-400 font-medium text-sm">Drop files here to upload</span>
-          </div>
-        )}
-        {loading && !files.length ? (
-          <div className="flex items-center justify-center h-full text-neutral-600 dark:text-neutral-400 text-sm">
-            Loading...
-          </div>
-        ) : (
-          <FileTree
-            files={files}
-            currentPath={currentPath}
-            onNavigate={navigateTo}
-            onDelete={handleDelete}
-          />
-        )}
-      </div>
-
-      {/* Transfer Queue */}
-      {activeTransfers.length > 0 && (
-        <TransferQueue transfers={activeTransfers} />
-      )}
 
       {/* New Folder Dialog */}
       <Modal isOpen={showNewFolderModal} onOpenChange={setShowNewFolderModal}>

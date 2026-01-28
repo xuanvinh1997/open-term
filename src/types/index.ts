@@ -1,7 +1,9 @@
 export type SessionType =
   | { type: "Local" }
   | { type: "Ssh"; host: string; port: number; username: string }
-  | { type: "Ftp"; host: string; port: number; username?: string };
+  | { type: "Ftp"; host: string; port: number; username?: string }
+  | { type: "Vnc"; host: string; port: number }
+  | { type: "Rdp"; host: string; port: number; username: string };
 
 export interface SessionInfo {
   id: string;
@@ -19,6 +21,35 @@ export interface FtpTab {
   id: string;
   title: string;
   host: string;
+  connectionName?: string;
+  connectionId?: string;
+}
+
+export interface SftpTab {
+  id: string;
+  title: string;
+  sessionId: string;
+  host: string;
+  connectionName?: string;
+  connectionId?: string;
+}
+
+export interface VncTab {
+  id: string;
+  title: string;
+  host: string;
+  width: number;
+  height: number;
+  connectionName?: string;
+  connectionId?: string;
+}
+
+export interface RdpTab {
+  id: string;
+  title: string;
+  host: string;
+  width: number;
+  height: number;
   connectionName?: string;
   connectionId?: string;
 }
@@ -49,6 +80,18 @@ export type ConnectionType =
       port: number;
       username: string | null;
       anonymous: boolean;
+    }
+  | {
+      connection_type: "vnc";
+      host: string;
+      port: number;
+    }
+  | {
+      connection_type: "rdp";
+      host: string;
+      port: number;
+      username: string;
+      domain: string | null;
     };
 
 export interface ConnectionProfile {
@@ -82,6 +125,18 @@ export type TransferStatus =
   | "Completed"
   | { Failed: string }
   | "Cancelled";
+
+// VNC types
+export type VncInputEvent =
+  | { type: "pointer"; x: number; y: number; button_mask: number }
+  | { type: "key"; key: number; down: boolean };
+
+// RDP types
+export type RdpInputEvent =
+  | { type: "mouse_move"; x: number; y: number }
+  | { type: "mouse_button"; button: number; down: boolean; x: number; y: number }
+  | { type: "mouse_wheel"; delta: number; x: number; y: number }
+  | { type: "keyboard"; scancode: number; down: boolean };
 
 export interface TransferProgress {
   id: string;

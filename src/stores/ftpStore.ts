@@ -209,8 +209,6 @@ export const useFtpStore = create<FtpState>((set, get) => ({
     if (!ftpId) return;
 
     // Set up event listeners BEFORE invoking the upload command
-    const tempId = `${Date.now()}-${Math.random()}`;
-    
     let progressUnsub: (() => void) | null = null;
     let completeUnsub: (() => void) | null = null;
     let errorUnsub: (() => void) | null = null;

@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { TerminalTabs } from "../terminal/TerminalTabs";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "../theme/ThemeToggle";
-import { useTerminalStore } from "../../stores/terminalStore";
 import { useFtpStore } from "../../stores/ftpStore";
 import { SftpBrowser } from "../sftp/SftpBrowser";
 import { FtpBrowser } from "../ftp";

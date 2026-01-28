@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { useTerminalStore } from "../../stores/terminalStore";
 import { useFtpStore } from "../../stores/ftpStore";
+import { useVncStore } from "../../stores/vncStore";
+import { useRdpStore } from "../../stores/rdpStore";
 import { Button, Input, Modal, TextField} from "@heroui/react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { invoke } from "@tauri-apps/api/core";
 import type { ConnectionProfile } from "../../types";
-import { VscAdd, VscTrash, VscFolder, VscCloud } from "react-icons/vsc";
+import { VscAdd, VscTrash } from "react-icons/vsc";
 
 interface ConnectionManagerProps {
   onNewConnection: () => void;
@@ -15,7 +17,7 @@ interface ConnectionManagerProps {
   onOpenFtp: () => void;
 }
 
-export function ConnectionManager({ onNewConnection, onOpenSftp, onOpenFtp }: ConnectionManagerProps) {
+export function ConnectionManager({ onNewConnection, onOpenSftp: _onOpenSftp, onOpenFtp: _onOpenFtp }: ConnectionManagerProps) {
   const {
     connections,
     loading,
@@ -26,12 +28,15 @@ export function ConnectionManager({ onNewConnection, onOpenSftp, onOpenFtp }: Co
     hasStoredPassword,
   } = useConnectionStore();
   const { connect: ftpConnect } = useFtpStore();
+  const { connect: vncConnect } = useVncStore();
+  const { connect: rdpConnect } = useRdpStore();
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [passwordPrompt, setPasswordPrompt] = useState<{
     connectionId: string;
     connectionName: string;
     needsPassword: boolean;
     needsPassphrase: boolean;
+    connection: ConnectionProfile;
   } | null>(null);
   const [password, setPassword] = useState("");
   const [passphrase, setPassphrase] = useState("");
@@ -89,6 +94,95 @@ export function ConnectionManager({ onNewConnection, onOpenSftp, onOpenFtp }: Co
       return;
     }
 
+    // Handle VNC connections
+    if (connection.connection_type === "vnc") {
+      setConnectingId(connection.id);
+      try {
+        const password = await invoke<string | null>("keychain_get_password", { 
+          connectionId: connection.id 
+        }).catch(() => null);
+
+        const vncSessionId = await vncConnect(
+          connection.host!,
+          connection.port!,
+          password || undefined,
+          connection.name,
+          connection.id
+        );
+
+        // Add VNC tab using the session ID from the backend
+        useTerminalStore.getState().addVncTab({
+          id: vncSessionId,
+          title: connection.name,
+          host: connection.host!,
+          width: 1024,
+          height: 768,
+          connectionName: connection.name,
+          connectionId: connection.id,
+        });
+
+        toast.success(`Connected to ${connection.name}`);
+      } catch (err) {
+        toast.error(`VNC connection failed: ${String(err)}`);
+      } finally {
+        setConnectingId(null);
+      }
+      return;
+    }
+
+    // Handle RDP connections
+    if (connection.connection_type === "rdp") {
+      setConnectingId(connection.id);
+      try {
+        const password = await invoke<string | null>("keychain_get_password", { 
+          connectionId: connection.id 
+        }).catch(() => null);
+
+        if (!password) {
+          // Prompt for password
+          setPasswordPrompt({
+            connectionId: connection.id,
+            connectionName: connection.name,
+            needsPassword: true,
+            needsPassphrase: false,
+            connection: connection,
+          });
+          setConnectingId(null);
+          return;
+        }
+
+        const rdpSessionId = await rdpConnect(
+          connection.host!,
+          connection.port!,
+          connection.username!,
+          password,
+          (connection as any).domain || undefined,
+          1920,
+          1080,
+          connection.name,
+          connection.id
+        );
+
+        // Add RDP tab using the session ID from the backend
+        useTerminalStore.getState().addRdpTab({
+          id: rdpSessionId,
+          title: connection.name,
+          host: connection.host!,
+          width: 1920,
+          height: 1080,
+          connectionName: connection.name,
+          connectionId: connection.id,
+        });
+
+        toast.success(`Connected to ${connection.name}`);
+      } catch (err) {
+        toast.error(`RDP connection failed: ${String(err)}`);
+      } finally {
+        setConnectingId(null);
+      }
+      return;
+    }
+
     // Handle SSH connections
     // Check if we need to prompt for password/passphrase
     const hasPassword = await hasStoredPassword(connection.id);
@@ -102,6 +196,7 @@ export function ConnectionManager({ onNewConnection, onOpenSftp, onOpenFtp }: Co
         connectionName: connection.name,
         needsPassword,
         needsPassphrase,
+        connection: connection,
       });
       return;
     }
@@ -120,17 +215,19 @@ export function ConnectionManager({ onNewConnection, onOpenSftp, onOpenFtp }: Co
     try {
       const sessionInfo = await connectToSaved(connectionId, pwd, phrase);
 
-      useTerminalStore.setState((state) => ({
-        tabs: [
-          ...state.tabs,
-          {
-            id: sessionInfo.id,
-            title: sessionInfo.title,
-            sessionInfo,
-          },
-        ],
-        activeTabId: sessionInfo.id,
-      }));
+      // Get connection details for host
+      const connection = connections.find(c => c.id === connectionId);
+      const host = connection?.host || connectionName;
+
+      // Add SFTP tab (includes terminal) instead of just terminal tab
+      useTerminalStore.getState().addSftpTab({
+        id: `sftp-${Date.now()}`,
+        title: `SFTP: ${connectionName}`,
+        sessionId: sessionInfo.id,
+        host: host,
+        connectionName: connectionName,
+        connectionId: connectionId,
+      });
 
       toast.success(`Connected to ${connectionName}`);
       setPasswordPrompt(null);
@@ -147,6 +244,45 @@ export function ConnectionManager({ onNewConnection, onOpenSftp, onOpenFtp }: Co
     e.preventDefault();
     if (!passwordPrompt) return;
 
+    // Handle RDP password prompt
+    if (passwordPrompt.connection.connection_type === "rdp") {
+      setConnectingId(passwordPrompt.connectionId);
+      try {
+        const rdpSessionId = await rdpConnect(
+          passwordPrompt.connection.host!,
+          passwordPrompt.connection.port!,
+          passwordPrompt.connection.username!,
+          password,
+          (passwordPrompt.connection as any).domain || undefined,
+          1920,
+          1080,
+          passwordPrompt.connectionName,
+          passwordPrompt.connectionId
+        );
+
+        // Add RDP tab using the session ID from the backend
+        useTerminalStore.getState().addRdpTab({
+          id: rdpSessionId,
+          title: passwordPrompt.connectionName,
+          host: passwordPrompt.connection.host!,
+          width: 1920,
+          height: 1080,
+          connectionName: passwordPrompt.connectionName,
+          connectionId: passwordPrompt.connectionId,
+        });
+
+        toast.success(`Connected to ${passwordPrompt.connectionName}`);
+        setPasswordPrompt(null);
+        setPassword("");
+      } catch (err) {
+        toast.error(`RDP connection failed: ${String(err)}`);
+      } finally {
+        setConnectingId(null);
+      }
+      return;
+    }
+
+    // Handle SSH password prompt
     await doConnect(
       passwordPrompt.connectionId,
       passwordPrompt.connectionName,

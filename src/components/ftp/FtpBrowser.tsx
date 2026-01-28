@@ -91,12 +91,6 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleRemoteSelect = (path: string, isMulti: boolean) => {
-    // TODO: Implement remote selection in FTP store
-    console.log("Remote select:", path, isMulti);
-  };
-
   const handleUploadSelected = async () => {
     const selectedFiles = local.getSelectedFiles();
     if (selectedFiles.length === 0) {
@@ -126,12 +120,6 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
   };
 
   // Drag and drop handlers for local to remote
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleLocalDragStart = useCallback((e: React.DragEvent, filePath: string) => {
-    e.dataTransfer.setData("localPath", filePath);
-    e.dataTransfer.effectAllowed = "copy";
-  }, []);
-
   const handleRemoteDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -159,12 +147,6 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
   }, [currentPath, upload]);
 
   // Drag and drop handlers for remote to local
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleRemoteDragStart = useCallback((e: React.DragEvent, filePath: string) => {
-    e.dataTransfer.setData("remotePath", filePath);
-    e.dataTransfer.effectAllowed = "copy";
-  }, []);
-
   const handleLocalDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();

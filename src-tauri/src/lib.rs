@@ -1,13 +1,16 @@
 mod ftp;
 mod local;
+mod rdp;
 mod sftp;
 mod ssh;
 mod state;
 mod storage;
 mod terminal;
+mod vnc;
 
 use ftp::{FtpAuthMethod, FtpBrowser, FtpClient};
 use parking_lot::Mutex;
+use rdp::RdpManager;
 use sftp::{FileEntry, SftpBrowser, TransferProgress, TransferStatus};
 use ssh::AuthMethod;
 use state::AppState;
@@ -16,12 +19,17 @@ use std::sync::Arc;
 use storage::{ConnectionProfile, ConnectionStorage, KeychainManager, StoredAuthMethod};
 use tauri::{AppHandle, Emitter, State};
 use terminal::session::SessionInfo;
+use vnc::VncManager;
 
 // SFTP sessions stored separately with their own ID
 type SftpSessions = Arc<Mutex<HashMap<String, SftpBrowser>>>;
 
 // FTP sessions stored separately with their own ID
 type FtpSessions = Arc<Mutex<HashMap<String, FtpBrowser>>>;
+
+// VNC and RDP sessions
+type VncManagerState = Arc<VncManager>;
+type RdpManagerState = Arc<RdpManager>;
 
 // ============ Terminal Commands ============
 
@@ -172,6 +180,60 @@ async fn save_ftp_connection(
 }
 
 #[tauri::command]
+async fn save_vnc_connection(
+    name: String,
+    host: String,
+    port: u16,
+    password: Option<String>,
+) -> Result<ConnectionProfile, String> {
+    let storage = ConnectionStorage::new().map_err(|e| e.to_string())?;
+
+    let profile = ConnectionProfile::new_vnc(name, host, port);
+
+    // Store password in keychain if provided
+    if let Some(pwd) = password {
+        if !pwd.is_empty() {
+            KeychainManager::store_password(&profile.id, &pwd)
+                .map_err(|e| format!("Failed to store password: {}", e))?;
+        }
+    }
+
+    storage
+        .save_connection(profile.clone())
+        .map_err(|e| e.to_string())?;
+
+    Ok(profile)
+}
+
+#[tauri::command]
+async fn save_rdp_connection(
+    name: String,
+    host: String,
+    port: u16,
+    username: String,
+    password: Option<String>,
+    domain: Option<String>,
+) -> Result<ConnectionProfile, String> {
+    let storage = ConnectionStorage::new().map_err(|e| e.to_string())?;
+
+    let profile = ConnectionProfile::new_rdp(name, host, port, username, domain);
+
+    // Store password in keychain if provided
+    if let Some(pwd) = password {
+        if !pwd.is_empty() {
+            KeychainManager::store_password(&profile.id, &pwd)
+                .map_err(|e| format!("Failed to store password: {}", e))?;
+        }
+    }
+
+    storage
+        .save_connection(profile.clone())
+        .map_err(|e| e.to_string())?;
+
+    Ok(profile)
+}
+
+#[tauri::command]
 async fn delete_connection(id: String) -> Result<(), String> {
     let storage = ConnectionStorage::new().map_err(|e| e.to_string())?;
 
@@ -199,6 +261,12 @@ async fn connect_saved(
         }
         storage::connections::ConnectionType::Ftp { .. } => {
             return Err("Cannot connect SSH to FTP connection profile".to_string());
+        }
+        storage::connections::ConnectionType::Vnc { .. } => {
+            return Err("Cannot connect SSH to VNC connection profile".to_string());
+        }
+        storage::connections::ConnectionType::Rdp { .. } => {
+            return Err("Cannot connect SSH to RDP connection profile".to_string());
         }
     };
 
@@ -843,6 +911,110 @@ async fn keychain_get_password(connection_id: String) -> Result<Option<String>, 
         .or_else(|_| Ok(None))
 }
 
+// ============ VNC Commands ============
+
+#[tauri::command]
+async fn vnc_connect(
+    app_handle: AppHandle,
+    vnc_manager: State<'_, VncManagerState>,
+    host: String,
+    port: u16,
+    password: Option<String>,
+) -> Result<(String, u16, u16), String> {
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let (width, height) = vnc_manager.create_session(
+        session_id.clone(),
+        &host,
+        port,
+        password.as_deref(),
+    )?;
+
+    vnc_manager.start_frame_reader(&session_id, app_handle)?;
+
+    Ok((session_id, width, height))
+}
+
+#[tauri::command]
+async fn vnc_send_input(
+    vnc_manager: State<'_, VncManagerState>,
+    session_id: String,
+    event: vnc::InputEvent,
+) -> Result<(), String> {
+    vnc_manager.send_input(&session_id, event)
+}
+
+#[tauri::command]
+async fn vnc_disconnect(
+    vnc_manager: State<'_, VncManagerState>,
+    session_id: String,
+) -> Result<(), String> {
+    vnc_manager.close_session(&session_id)
+}
+
+#[tauri::command]
+async fn vnc_get_dimensions(
+    vnc_manager: State<'_, VncManagerState>,
+    session_id: String,
+) -> Result<(u16, u16), String> {
+    vnc_manager.get_dimensions(&session_id)
+}
+
+// ============ RDP Commands ============
+
+#[tauri::command]
+async fn rdp_connect(
+    app_handle: AppHandle,
+    rdp_manager: State<'_, RdpManagerState>,
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    domain: Option<String>,
+    width: u16,
+    height: u16,
+) -> Result<String, String> {
+    let session_id = uuid::Uuid::new_v4().to_string();
+    rdp_manager.create_session(
+        session_id.clone(),
+        &host,
+        port,
+        &username,
+        &password,
+        domain.as_deref(),
+        width,
+        height,
+    )?;
+
+    rdp_manager.start_frame_reader(&session_id, app_handle)?;
+
+    Ok(session_id)
+}
+
+#[tauri::command]
+async fn rdp_send_input(
+    rdp_manager: State<'_, RdpManagerState>,
+    session_id: String,
+    event: rdp::InputEvent,
+) -> Result<(), String> {
+    rdp_manager.send_input(&session_id, event)
+}
+
+#[tauri::command]
+async fn rdp_disconnect(
+    rdp_manager: State<'_, RdpManagerState>,
+    session_id: String,
+) -> Result<(), String> {
+    rdp_manager.close_session(&session_id)
+}
+
+#[tauri::command]
+async fn rdp_get_dimensions(
+    rdp_manager: State<'_, RdpManagerState>,
+    session_id: String,
+) -> Result<(u16, u16), String> {
+    rdp_manager.get_dimensions(&session_id)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -851,6 +1023,8 @@ pub fn run() {
         .manage(Arc::new(AppState::new()))
         .manage(SftpSessions::default())
         .manage(FtpSessions::default())
+        .manage(VncManagerState::default())
+        .manage(RdpManagerState::default())
         .invoke_handler(tauri::generate_handler![
             // Terminal
             create_terminal,
@@ -864,6 +1038,8 @@ pub fn run() {
             get_connection,
             save_connection,
             save_ftp_connection,
+            save_vnc_connection,
+            save_rdp_connection,
             delete_connection,
             connect_saved,
             has_stored_password,
@@ -893,6 +1069,16 @@ pub fn run() {
             ftp_upload_folder,
             // Local File System
             local_list_dir,
+            // VNC
+            vnc_connect,
+            vnc_send_input,
+            vnc_disconnect,
+            vnc_get_dimensions,
+            // RDP
+            rdp_connect,
+            rdp_send_input,
+            rdp_disconnect,
+            rdp_get_dimensions,
             local_get_home_dir,
             local_get_downloads_dir,
         ])

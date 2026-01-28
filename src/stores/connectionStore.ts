@@ -26,6 +26,20 @@ interface ConnectionState {
     password: string | null,
     anonymous: boolean
   ) => Promise<ConnectionProfile>;
+  saveVncConnection: (
+    name: string,
+    host: string,
+    port: number,
+    password: string | null
+  ) => Promise<ConnectionProfile>;
+  saveRdpConnection: (
+    name: string,
+    host: string,
+    port: number,
+    username: string,
+    password: string | null,
+    domain: string | null
+  ) => Promise<ConnectionProfile>;
   deleteConnection: (id: string) => Promise<void>;
   connectToSaved: (
     connectionId: string,
@@ -90,6 +104,38 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
       username,
       password,
       anonymous,
+    });
+
+    set((state) => ({
+      connections: [...state.connections, profile],
+    }));
+
+    return profile;
+  },
+
+  saveVncConnection: async (name, host, port, password) => {
+    const profile = await invoke<ConnectionProfile>("save_vnc_connection", {
+      name,
+      host,
+      port,
+      password,
+    });
+
+    set((state) => ({
+      connections: [...state.connections, profile],
+    }));
+
+    return profile;
+  },
+
+  saveRdpConnection: async (name, host, port, username, password, domain) => {
+    const profile = await invoke<ConnectionProfile>("save_rdp_connection", {
+      name,
+      host,
+      port,
+      username,
+      password,
+      domain,
     });
 
     set((state) => ({
