@@ -51,9 +51,9 @@ impl RdpClient {
         let tcp_stream = TcpStream::connect(&addr)
             .map_err(|e| format!("Failed to connect to {}: {}", addr, e))?;
 
-        // Set read timeout to prevent blocking forever
+        // Use blocking mode during connection handshake (no timeout)
         tcp_stream
-            .set_read_timeout(Some(Duration::from_secs(30)))
+            .set_read_timeout(None)
             .map_err(|e| format!("Failed to set read timeout: {}", e))?;
 
         let client_addr = tcp_stream
@@ -120,6 +120,8 @@ impl RdpClient {
             .connect(host, initial_stream)
             .map_err(|e| format!("TLS handshake failed: {}", e))?;
 
+        // Keep blocking mode for CredSSP/NLA handshake
+
         // Get server public key from TLS certificate
         let server_public_key = Self::extract_server_public_key(&tls_stream)?;
 
@@ -151,6 +153,15 @@ impl RdpClient {
             "RDP: Connected! Desktop size: {}x{}",
             desktop_size.width, desktop_size.height
         );
+
+        // NOW switch to short read timeout for responsive input handling
+        // This is safe because the connection handshake is complete
+        // We need to extract the stream, set timeout, and re-wrap it
+        let tls_stream = tls_framed.into_inner_no_leftover();
+        if let Err(e) = tls_stream.get_ref().set_read_timeout(Some(Duration::from_millis(50))) {
+            eprintln!("RDP: Warning - failed to set read timeout: {}", e);
+        }
+        let tls_framed = Framed::new(tls_stream);
 
         // Create decoded image for frame buffer (RGBA format)
         let image = DecodedImage::new(PixelFormat::RgbA32, desktop_size.width, desktop_size.height);
@@ -213,12 +224,13 @@ impl RdpClient {
             return Ok(None);
         }
 
-        let mut framed = self.framed.lock();
-        let mut active_stage = self.active_stage.lock();
-        let mut image = self.image.lock();
+        // Step 1: Read PDU with minimal lock scope - this is the blocking call
+        let pdu_result = {
+            let mut framed = self.framed.lock();
+            framed.read_pdu()
+        };
 
-        // Try to read a PDU (with timeout handling)
-        let (action, payload) = match framed.read_pdu() {
+        let (action, payload) = match pdu_result {
             Ok(pdu) => pdu,
             Err(e) => {
                 // Check for timeout (expected during normal operation)
@@ -238,20 +250,23 @@ impl RdpClient {
             }
         };
 
-        // Process the PDU
-        let outputs = active_stage
-            .process(&mut *image, action, &payload)
-            .map_err(|e| format!("Failed to process PDU: {:?}", e))?;
+        // Step 2: Process the PDU
+        let outputs = {
+            let mut active_stage = self.active_stage.lock();
+            let mut image = self.image.lock();
+            active_stage
+                .process(&mut *image, action, &payload)
+                .map_err(|e| format!("Failed to process PDU: {:?}", e))?
+        };
 
         let mut frame_updated = false;
+        let mut responses: Vec<Vec<u8>> = Vec::new();
 
         for output in outputs {
             match output {
                 ActiveStageOutput::ResponseFrame(frame) => {
-                    // Send response back to server
-                    framed
-                        .write_all(&frame)
-                        .map_err(|e| format!("Failed to write response: {}", e))?;
+                    // Collect responses to send later
+                    responses.push(frame);
                 }
                 ActiveStageOutput::GraphicsUpdate(_region) => {
                     // Graphics were updated
@@ -275,6 +290,16 @@ impl RdpClient {
                     eprintln!("RDP: Deactivation requested");
                     // Could handle reactivation here
                 }
+            }
+        }
+
+        // Step 3: Send responses back to server
+        if !responses.is_empty() {
+            let mut framed = self.framed.lock();
+            for frame in responses {
+                framed
+                    .write_all(&frame)
+                    .map_err(|e| format!("Failed to write response: {}", e))?;
             }
         }
 
@@ -388,13 +413,16 @@ impl RdpClient {
         &self,
         events: Vec<ironrdp_pdu::input::fast_path::FastPathInputEvent>,
     ) -> Result<(), String> {
-        let mut active_stage = self.active_stage.lock();
-        let mut image = self.image.lock();
+        // Process input events
+        let outputs = {
+            let mut active_stage = self.active_stage.lock();
+            let mut image = self.image.lock();
+            active_stage
+                .process_fastpath_input(&mut *image, &events)
+                .map_err(|e| format!("Failed to process input: {:?}", e))?
+        };
 
-        let outputs = active_stage
-            .process_fastpath_input(&mut *image, &events)
-            .map_err(|e| format!("Failed to process input: {:?}", e))?;
-
+        // Send responses (separate lock scope)
         let mut framed = self.framed.lock();
         for output in outputs {
             if let ActiveStageOutput::ResponseFrame(frame) = output {
