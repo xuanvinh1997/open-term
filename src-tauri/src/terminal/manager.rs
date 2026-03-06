@@ -110,21 +110,43 @@ impl TerminalManager {
 
         std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
+            let mut accum = Vec::with_capacity(32 * 1024);
+            let mut last_emit = std::time::Instant::now();
+            let event_name = format!("terminal-output-{}", id);
+            let flush_interval = std::time::Duration::from_millis(16);
+            let max_accum = 32 * 1024;
+
             loop {
                 match reader.read(&mut buf) {
-                    Ok(0) => break, // EOF
+                    Ok(0) => {
+                        // EOF - flush remaining
+                        if !accum.is_empty() {
+                            let _ = app_handle.emit(&event_name, accum.clone());
+                        }
+                        break;
+                    }
                     Ok(n) => {
-                        let data = buf[..n].to_vec();
-                        let event_name = format!("terminal-output-{}", id);
-                        if app_handle.emit(&event_name, data).is_err() {
-                            break;
+                        accum.extend_from_slice(&buf[..n]);
+                        let elapsed = last_emit.elapsed();
+                        if accum.len() >= max_accum || elapsed >= flush_interval {
+                            if app_handle.emit(&event_name, std::mem::take(&mut accum)).is_err() {
+                                break;
+                            }
+                            accum.reserve(max_accum);
+                            last_emit = std::time::Instant::now();
                         }
                     }
                     Err(e) => {
-                        // Handle WouldBlock for non-blocking SSH sessions
                         if e.kind() == std::io::ErrorKind::WouldBlock {
-                            // Sleep briefly before trying again to avoid busy-waiting
-                            std::thread::sleep(std::time::Duration::from_millis(10));
+                            // Natural pause - flush if we have data (good for interactive latency)
+                            if !accum.is_empty() {
+                                if app_handle.emit(&event_name, std::mem::take(&mut accum)).is_err() {
+                                    break;
+                                }
+                                accum.reserve(max_accum);
+                                last_emit = std::time::Instant::now();
+                            }
+                            std::thread::sleep(std::time::Duration::from_millis(5));
                             continue;
                         }
                         eprintln!("Error reading from session: {}", e);

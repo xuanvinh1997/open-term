@@ -3,7 +3,8 @@ import { useFtpStore } from "../../stores/ftpStore";
 import { useSftpStore } from "../../stores/sftpStore";
 import { useVncStore } from "../../stores/vncStore";
 import { useRdpStore } from "../../stores/rdpStore";
-import { Terminal } from "./Terminal";
+import { useMemo } from "react";
+import Terminal from "./Terminal";
 import { FtpBrowser } from "../ftp/FtpBrowser";
 import { SftpBrowser } from "../sftp/SftpBrowser";
 import { VncViewer } from "../vnc/VncViewer";
@@ -20,14 +21,14 @@ export function TerminalTabs() {
   const { disconnect: ftpDisconnect } = useFtpStore();  const { closeSftp: sftpDisconnect } = useSftpStore();  const { disconnect: vncDisconnect } = useVncStore();
   const { disconnect: rdpDisconnect } = useRdpStore();
 
-  const allTabs = [
+  const allTabs = useMemo(() => [
     ...tabs,
     ...ftpTabs.map(t => ({ ...t, isFtp: true })),
     ...sftpTabs.map(t => ({ ...t, isSftp: true })),
     ...vncTabs.map(t => ({ ...t, isVnc: true })),
     ...rdpTabs.map(t => ({ ...t, isRdp: true })),
     ...editorTabs.map(t => ({ ...t, isEditor: true }))
-  ];
+  ], [tabs, ftpTabs, sftpTabs, vncTabs, rdpTabs, editorTabs]);
 
   const handleNewTab = async () => {
     await createTerminal();

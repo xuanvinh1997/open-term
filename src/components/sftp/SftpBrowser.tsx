@@ -5,7 +5,7 @@ import { FileTree } from "./FileTree";
 import { isBinaryFile } from "../editor/TextEditor";
 import type { FileEntry } from "../../types";
 import { TransferQueue } from "./TransferQueue";
-import { Terminal } from "../terminal/Terminal";
+import Terminal from "../terminal/Terminal";
 import { open } from "@tauri-apps/plugin-dialog";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
