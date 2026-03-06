@@ -40,6 +40,19 @@ interface ConnectionState {
     password: string | null,
     domain: string | null
   ) => Promise<ConnectionProfile>;
+  updateConnection: (
+    id: string,
+    name: string,
+    connectionType: string,
+    host: string,
+    port: number,
+    username?: string,
+    authType?: string,
+    privateKeyPath?: string,
+    password?: string,
+    anonymous?: boolean,
+    domain?: string
+  ) => Promise<ConnectionProfile>;
   deleteConnection: (id: string) => Promise<void>;
   connectToSaved: (
     connectionId: string,
@@ -140,6 +153,28 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
 
     set((state) => ({
       connections: [...state.connections, profile],
+    }));
+
+    return profile;
+  },
+
+  updateConnection: async (id, name, connectionType, host, port, username, authType, privateKeyPath, password, anonymous, domain) => {
+    const profile = await invoke<ConnectionProfile>("update_connection", {
+      id,
+      name,
+      connectionType,
+      host,
+      port,
+      username,
+      authType,
+      privateKeyPath,
+      password,
+      anonymous,
+      domain,
+    });
+
+    set((state) => ({
+      connections: state.connections.map((c) => (c.id === id ? profile : c)),
     }));
 
     return profile;

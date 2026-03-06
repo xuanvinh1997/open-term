@@ -20,15 +20,17 @@ interface FileTreeProps {
   selectedFiles?: Set<string>;
   onSelect?: (path: string, isMulti: boolean) => void;
   onClearSelection?: () => void;
+  onOpenFile?: (file: FileEntry) => void;
 }
 
-export function FileTree({ 
-  files, 
-  onNavigate, 
-  onDelete, 
+export function FileTree({
+  files,
+  onNavigate,
+  onDelete,
   selectedFiles,
   onSelect,
   onClearSelection,
+  onOpenFile,
 }: FileTreeProps) {
   const getFileIcon = (file: FileEntry) => {
     if (file.file_type === "Directory") return <VscFolder className="text-amber-400" />;
@@ -98,19 +100,25 @@ export function FileTree({
     if (onSelect) {
       const isMulti = e.ctrlKey || e.metaKey || e.shiftKey;
       onSelect(file.path, isMulti);
-      
+
       // Don't navigate on selection click
       if (isMulti) {
         return;
       }
     }
-    
+
     // Navigate to directory
     if (file.file_type === "Directory") {
       if (onClearSelection) {
         onClearSelection();
       }
       onNavigate(file.path);
+    }
+  };
+
+  const handleDoubleClick = (file: FileEntry) => {
+    if (file.file_type !== "Directory" && onOpenFile) {
+      onOpenFile(file);
     }
   };
 
@@ -128,9 +136,9 @@ export function FileTree({
 
   if (files.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full py-16 text-neutral-400 dark:text-neutral-500">
-        <VscFolder className="w-14 h-14 mb-4 opacity-40" />
-        <p className="text-sm font-medium">Empty directory</p>
+      <div className="flex flex-col items-center justify-center h-full py-12 text-neutral-400 dark:text-neutral-500">
+        <VscFolder className="w-10 h-10 mb-3 opacity-40" />
+        <p className="text-xs font-medium">Empty directory</p>
       </div>
     );
   }
@@ -140,9 +148,9 @@ export function FileTree({
       <table className="w-full border-collapse">
         <thead className="sticky top-0 bg-white dark:bg-neutral-900 z-10">
           <tr>
-            <th className="text-left text-xs font-semibold text-neutral-500 dark:text-neutral-400 py-2 px-4 border-b border-neutral-200 dark:border-neutral-700">Name</th>
-            <th className="text-right text-xs font-semibold text-neutral-500 dark:text-neutral-400 py-2 px-4 border-b border-neutral-200 dark:border-neutral-700">Size</th>
-            <th className="text-right text-xs font-semibold text-neutral-500 dark:text-neutral-400 py-2 px-4 border-b border-neutral-200 dark:border-neutral-700">Modified</th>
+            <th className="text-left text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 py-1.5 px-3 border-b border-neutral-200 dark:border-neutral-700">Name</th>
+            <th className="text-right text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 py-1.5 px-3 border-b border-neutral-200 dark:border-neutral-700">Size</th>
+            <th className="text-right text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 py-1.5 px-3 border-b border-neutral-200 dark:border-neutral-700">Modified</th>
           </tr>
         </thead>
         <tbody>
@@ -159,26 +167,27 @@ export function FileTree({
                   isSelected && "bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/40"
                 )}
                 onClick={(e) => handleClick(file, e)}
+                onDoubleClick={() => handleDoubleClick(file)}
                 onContextMenu={(e) => handleContextMenu(e, file)}
               >
-                <td className="py-2 px-4">
-                  <div className="flex items-center gap-2.5">
+                <td className="py-1.5 px-3">
+                  <div className="flex items-center gap-2">
                     {onSelect && (
                       <span className={cn(
-                        "flex-shrink-0 w-4 h-4 flex items-center justify-center rounded border transition-colors",
-                        isSelected 
-                          ? "bg-blue-500 border-blue-500" 
+                        "flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded border transition-colors",
+                        isSelected
+                          ? "bg-blue-500 border-blue-500"
                           : "border-neutral-300 dark:border-neutral-600"
                       )}>
-                        {isSelected && <VscCheck className="w-3 h-3 text-white" />}
+                        {isSelected && <VscCheck className="w-2.5 h-2.5 text-white" />}
                       </span>
                     )}
-                    <span className="flex-shrink-0 w-4 h-4">
+                    <span className="flex-shrink-0 w-3.5 h-3.5">
                       {getFileIcon(file)}
                     </span>
                     <span
                       className={cn(
-                        "truncate text-sm text-neutral-800 dark:text-neutral-200",
+                        "truncate text-xs text-neutral-800 dark:text-neutral-200",
                         file.file_type === "Directory" && "text-blue-500 dark:text-blue-400 font-medium",
                         file.file_type === "Symlink" && "text-purple-500 dark:text-purple-400 italic"
                       )}
@@ -187,10 +196,10 @@ export function FileTree({
                     </span>
                   </div>
                 </td>
-                <td className="text-right text-neutral-600 dark:text-neutral-400 text-xs font-mono py-2 px-4">
+                <td className="text-right text-neutral-600 dark:text-neutral-400 text-[11px] font-mono py-1.5 px-3">
                   {file.file_type === "Directory" ? "-" : formatSize(file.size)}
                 </td>
-                <td className="text-right text-neutral-600 dark:text-neutral-400 text-xs py-2 px-4">
+                <td className="text-right text-neutral-600 dark:text-neutral-400 text-[11px] py-1.5 px-3">
                   {formatDate(file.modified)}
                 </td>
               </tr>

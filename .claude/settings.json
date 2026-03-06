@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh release list --repo xuanvinh1997/open-term)",
+      "Bash(cargo tauri build)",
+      "Bash(npx tauri build)",
+      "Bash(conda install -y gh --channel conda-forge)",
+      "Bash(gh auth status)"
+    ]
+  }
+}

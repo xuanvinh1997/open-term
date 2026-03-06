@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import { useSftpStore } from "../../stores/sftpStore";
+import { useTerminalStore } from "../../stores/terminalStore";
 import { FileTree } from "./FileTree";
+import { isBinaryFile } from "../editor/TextEditor";
+import type { FileEntry } from "../../types";
 import { TransferQueue } from "./TransferQueue";
 import { Terminal } from "../terminal/Terminal";
 import { open } from "@tauri-apps/plugin-dialog";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { Button, Input, Modal } from "@heroui/react";
 import { toast } from "sonner";
 import {
@@ -38,6 +43,9 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
     uploadFolder,
   } = useSftpStore();
 
+  const [pathInput, setPathInput] = useState(currentPath);
+  const [isEditingPath, setIsEditingPath] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -53,6 +61,44 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
       closeSftp();
     };
   }, [sessionId]);
+
+  // Sync pathInput when currentPath changes from navigation
+  useEffect(() => {
+    if (!isEditingPath) {
+      setPathInput(currentPath);
+    }
+  }, [currentPath, isEditingPath]);
+
+  // Tauri native drag-and-drop for file/folder uploads
+  useEffect(() => {
+    const unlisteners: Promise<UnlistenFn>[] = [];
+
+    unlisteners.push(listen("tauri://drag-enter", () => setIsDragging(true)));
+    unlisteners.push(listen("tauri://drag-leave", () => setIsDragging(false)));
+    unlisteners.push(
+      listen<{ paths: string[] }>("tauri://drag-drop", async (event) => {
+        setIsDragging(false);
+        const paths = event.payload.paths;
+        if (!paths || paths.length === 0) return;
+
+        for (const localPath of paths) {
+          const isDir = await invoke<boolean>("check_is_directory", { path: localPath });
+          const name = localPath.split(/[/\\]/).pop() || "file";
+          if (isDir) {
+            await uploadFolder(localPath, currentPath);
+          } else {
+            const remotePath = `${currentPath}/${name}`;
+            await upload(localPath, remotePath);
+          }
+        }
+        toast.info(`Uploading ${paths.length} item(s)`);
+      })
+    );
+
+    return () => {
+      unlisteners.forEach((p) => p.then((fn) => fn()));
+    };
+  }, [currentPath, upload, uploadFolder]);
 
   const handleNavigateUp = () => {
     const parentPath = currentPath.split("/").slice(0, -1).join("/") || "/";
@@ -128,6 +174,23 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
     }
   };
 
+  const handleOpenFile = (file: FileEntry) => {
+    if (isBinaryFile(file.name)) {
+      toast.error("Cannot open binary files in the editor");
+      return;
+    }
+    const sftpId = useSftpStore.getState().sftpId;
+    if (!sftpId) return;
+    useTerminalStore.getState().addEditorTab({
+      id: `editor-${Date.now()}`,
+      title: file.name,
+      filePath: file.path,
+      source: "sftp",
+      sessionId: sftpId,
+      isDirty: false,
+    });
+  };
+
   const activeTransfers = transfers.filter(
     (t) => t.status === "InProgress" || t.status === "Pending"
   );
@@ -139,71 +202,94 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
         {/* File Browser - Left Side */}
         <div className="w-[30%] flex flex-col border-r border-neutral-300 dark:border-neutral-700">
           {/* File Browser Toolbar */}
-          <div className="flex items-center gap-1 px-2 py-2 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
+          <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 p-0 min-w-0"
+              className="h-6 w-6 p-0 min-w-0"
               onClick={handleNavigateHome}
               aria-label="Go to home"
             >
-              <VscHome className="h-3.5 w-3.5" />
+              <VscHome className="h-3 w-3" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 p-0 min-w-0"
+              className="h-6 w-6 p-0 min-w-0"
               onClick={handleNavigateUp}
               isDisabled={currentPath === "/"}
               aria-label="Go up"
             >
-              <VscChevronUp className="h-3.5 w-3.5" />
+              <VscChevronUp className="h-3 w-3" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 p-0 min-w-0"
+              className="h-6 w-6 p-0 min-w-0"
               onClick={refresh}
               isDisabled={loading}
               aria-label="Refresh"
             >
               <VscRefresh className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             </Button>
-            <div className="w-px h-4 bg-neutral-300 dark:bg-neutral-600 mx-1" />
+            <div className="w-px h-3.5 bg-neutral-300 dark:bg-neutral-600 mx-0.5" />
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 p-0 min-w-0"
+              className="h-6 w-6 p-0 min-w-0"
               onClick={() => setShowNewFolderModal(true)}
               aria-label="New folder"
             >
-              <VscNewFolder className="h-3.5 w-3.5" />
+              <VscNewFolder className="h-3 w-3" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 p-0 min-w-0"
+              className="h-6 w-6 p-0 min-w-0"
               onClick={handleUploadFiles}
               aria-label="Upload files"
             >
-              <VscCloudUpload className="h-3.5 w-3.5" />
+              <VscCloudUpload className="h-3 w-3" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 p-0 min-w-0"
+              className="h-6 w-6 p-0 min-w-0"
               onClick={handleUploadFolder}
               aria-label="Upload folder"
             >
-              <VscFolderOpened className="h-3.5 w-3.5" />
+              <VscFolderOpened className="h-3 w-3" />
             </Button>
           </div>
 
           {/* Path Bar */}
-          <div className="px-2 py-1.5 bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
-            <div className="text-xs font-mono text-neutral-600 dark:text-neutral-400 truncate" title={currentPath}>
-              {currentPath}
-            </div>
+          <div className="px-1.5 py-1 bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+            <input
+              className="w-full text-[11px] font-mono text-neutral-600 dark:text-neutral-400 bg-transparent outline-none border border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-neutral-900 rounded px-1 py-0.5 transition-colors"
+              value={pathInput}
+              onChange={(e) => setPathInput(e.target.value)}
+              onFocus={() => setIsEditingPath(true)}
+              onBlur={() => {
+                setIsEditingPath(false);
+                setPathInput(currentPath);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                  const trimmed = pathInput.trim();
+                  if (trimmed && trimmed !== currentPath) {
+                    navigateTo(trimmed);
+                  }
+                  setIsEditingPath(false);
+                } else if (e.key === "Escape") {
+                  setPathInput(currentPath);
+                  setIsEditingPath(false);
+                  e.currentTarget.blur();
+                }
+              }}
+              title="Press Enter to navigate, Escape to cancel"
+              spellCheck={false}
+            />
           </div>
 
           {/* Error */}
@@ -214,7 +300,17 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
           )}
 
           {/* File List */}
-          <div className="flex-1 overflow-hidden">
+          <div className={cn(
+            "flex-1 overflow-hidden relative transition-colors duration-200",
+            isDragging && "border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+          )}>
+            {isDragging && (
+              <div className="absolute inset-0 flex items-center justify-center bg-blue-100/80 dark:bg-blue-900/30 z-10 backdrop-blur-sm">
+                <span className="text-blue-600 dark:text-blue-400 font-medium text-sm">
+                  Drop files/folders to upload
+                </span>
+              </div>
+            )}
             {loading && !files.length ? (
               <div className="flex items-center justify-center h-full text-neutral-500 dark:text-neutral-400 text-sm">
                 Loading...
@@ -225,6 +321,7 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
                 currentPath={currentPath}
                 onNavigate={navigateTo}
                 onDelete={handleDelete}
+                onOpenFile={handleOpenFile}
               />
             )}
           </div>

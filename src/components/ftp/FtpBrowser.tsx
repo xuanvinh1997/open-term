@@ -1,7 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 import { useFtpStore } from "../../stores/ftpStore";
 import { useLocalStore } from "../../stores/localStore";
+import { useTerminalStore } from "../../stores/terminalStore";
 import { FileTree } from "../sftp/FileTree";
+import { isBinaryFile } from "../editor/TextEditor";
+import type { FileEntry } from "../../types";
 import { TransferQueue } from "../sftp/TransferQueue";
 import { Button } from "@heroui/react";
 import { cn } from "@/lib/utils";
@@ -174,6 +177,30 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
     }
   }, [local, download]);
 
+  const handleOpenRemoteFile = (file: FileEntry) => {
+    if (isBinaryFile(file.name)) return;
+    if (!ftpId) return;
+    useTerminalStore.getState().addEditorTab({
+      id: `editor-${Date.now()}`,
+      title: file.name,
+      filePath: file.path,
+      source: "ftp",
+      sessionId: ftpId,
+      isDirty: false,
+    });
+  };
+
+  const handleOpenLocalFile = (file: FileEntry) => {
+    if (isBinaryFile(file.name)) return;
+    useTerminalStore.getState().addEditorTab({
+      id: `editor-${Date.now()}`,
+      title: file.name,
+      filePath: file.path,
+      source: "local",
+      isDirty: false,
+    });
+  };
+
   const activeTransfers = transfers.filter(
     (t) => t.status === "InProgress" || t.status === "Pending"
   );
@@ -186,9 +213,9 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
     <div className="flex flex-col h-full bg-white dark:bg-neutral-900">
       {/* Header */}
       <div className="border-b border-neutral-300 dark:border-neutral-700">
-        <div className="flex items-center justify-between px-4 py-2.5">
+        <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
               FTP
             </span>
             {connectionName && (
@@ -210,39 +237,39 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
             className="h-6 w-6 p-0 hover:bg-red-100 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
             onClick={handleClose}
           >
-            <VscClose className="h-3.5 w-3.5" />
+            <VscClose className="h-3 w-3" />
           </Button>
         </div>
       </div>
 
       {error && (
-        <div className="mx-4 mt-3 p-2.5 text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-md">
+        <div className="mx-3 mt-2 p-2 text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-md">
           {error}
         </div>
       )}
 
       {/* Dual-pane layout */}
-      <div className="flex-1 flex gap-4 p-4 overflow-hidden">
+      <div className="flex-1 flex gap-3 p-3 overflow-hidden">
         {/* Local Browser (Left) */}
         <div className="flex-1 flex flex-col min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              className="h-7 w-7 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
               onClick={local.navigateUp}
               isDisabled={local.currentPath === "/" || !local.currentPath}
             >
               <VscChevronUp className="h-4 w-4" />
             </Button>
-            <div className="flex-1 px-3 py-1.5 text-xs font-mono text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 rounded-md border-2 border-neutral-400 dark:border-neutral-600 truncate">
+            <div className="flex-1 px-2 py-1 text-[11px] font-mono text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 rounded-md border border-neutral-400 dark:border-neutral-600 truncate">
               {local.currentPath || "Local"}
             </div>
             <div className="flex gap-1">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+                className="h-7 w-7 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
                 onClick={local.goHome}
                 aria-label="Home"
               >
@@ -251,7 +278,7 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+                className="h-7 w-7 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
                 onClick={local.refresh}
                 isDisabled={local.loading}
               >
@@ -260,7 +287,7 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
             </div>
           </div>
           
-          <div className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 mb-2 px-2">
+          <div className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 mb-1.5 px-2">
             Local Computer
             {local.selectedFiles.size > 0 && (
               <span className="ml-2 text-blue-500">
@@ -280,7 +307,7 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
           >
             {isDraggingToLocal && (
               <div className="absolute inset-0 flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 z-10 backdrop-blur-sm">
-                <span className="text-blue-600 dark:text-blue-400 font-medium text-sm">
+                <span className="text-blue-600 dark:text-blue-400 font-medium text-xs">
                   Drop to download here
                 </span>
               </div>
@@ -298,32 +325,33 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
                 selectedFiles={local.selectedFiles}
                 onSelect={handleLocalSelect}
                 onClearSelection={local.clearSelection}
+                onOpenFile={handleOpenLocalFile}
               />
             )}
           </div>
         </div>
 
         {/* Transfer Buttons (Center) */}
-        <div className="flex flex-col items-center justify-center gap-3">
+        <div className="flex flex-col items-center justify-center gap-2">
           <Button
             variant="primary"
             size="sm"
-            className="h-10 w-10 p-0"
+            className="h-8 w-8 p-0"
             onClick={handleUploadSelected}
             isDisabled={local.selectedFiles.size === 0 || loading}
             aria-label="Upload selected files to remote"
           >
-            <VscArrowRight className="h-5 w-5" />
+            <VscArrowRight className="h-4 w-4" />
           </Button>
           <Button
             variant="primary"
             size="sm"
-            className="h-10 w-10 p-0"
+            className="h-8 w-8 p-0"
             onClick={handleDownloadSelected}
             isDisabled={loading}
             aria-label="Download selected files to local"
           >
-            <VscArrowLeft className="h-5 w-5" />
+            <VscArrowLeft className="h-4 w-4" />
           </Button>
         </div>
 
@@ -333,20 +361,20 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              className="h-7 w-7 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
               onClick={handleNavigateUp}
               isDisabled={currentPath === "/"}
             >
               <VscChevronUp className="h-4 w-4" />
             </Button>
-            <div className="flex-1 px-3 py-1.5 text-xs font-mono text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 rounded-md border-2 border-neutral-400 dark:border-neutral-600 truncate">
+            <div className="flex-1 px-2 py-1 text-[11px] font-mono text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 rounded-md border border-neutral-400 dark:border-neutral-600 truncate">
               {currentPath}
             </div>
             <div className="flex gap-1">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+                className="h-7 w-7 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
                 onClick={refresh}
                 isDisabled={loading}
               >
@@ -355,7 +383,7 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+                className="h-7 w-7 p-0 hover:bg-neutral-200 dark:hover:bg-neutral-800"
                 onClick={handleCreateFolder}
               >
                 <VscNewFolder className="h-4 w-4" />
@@ -363,7 +391,7 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
             </div>
           </div>
           
-          <div className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 mb-2 px-2">
+          <div className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 mb-1.5 px-2">
             Remote Server: {host}
           </div>
 
@@ -378,7 +406,7 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
           >
             {isDraggingToRemote && (
               <div className="absolute inset-0 flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 z-10 backdrop-blur-sm">
-                <span className="text-blue-600 dark:text-blue-400 font-medium text-sm">
+                <span className="text-blue-600 dark:text-blue-400 font-medium text-xs">
                   Drop to upload here
                 </span>
               </div>
@@ -393,6 +421,7 @@ export function FtpBrowser({ onClose }: FtpBrowserProps) {
                 currentPath={currentPath}
                 onNavigate={navigateTo}
                 onDelete={handleDelete}
+                onOpenFile={handleOpenRemoteFile}
               />
             )}
           </div>

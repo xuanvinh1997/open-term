@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { useTerminalStore } from "../../stores/terminalStore";
 import { useFtpStore } from "../../stores/ftpStore";
@@ -6,7 +6,7 @@ import { useVncStore } from "../../stores/vncStore";
 import { useRdpStore } from "../../stores/rdpStore";
 import { Button, Input, TextField } from "@heroui/react";
 import { toast } from "sonner";
-import type { AuthMethod, RdpQuality } from "../../types";
+import type { AuthMethod, ConnectionProfile, RdpQuality } from "../../types";
 
 interface ConnectionFormProps {
   open: boolean;
@@ -16,6 +16,7 @@ interface ConnectionFormProps {
   onVncConnected?: () => void;
   onRdpConnected?: () => void;
   defaultTab?: "ssh" | "ftp" | "vnc" | "rdp";
+  editingConnection?: ConnectionProfile | null;
 }
 
 type AuthType = "password" | "publickey" | "agent";
@@ -28,8 +29,10 @@ export function ConnectionForm({
   onVncConnected,
   onRdpConnected,
   defaultTab = "ssh",
+  editingConnection,
 }: ConnectionFormProps) {
   const [connectionType, setConnectionType] = useState<"ssh" | "ftp" | "vnc" | "rdp">(defaultTab);
+  const isEditing = !!editingConnection;
 
   // SSH state
   const [name, setName] = useState("");
@@ -71,10 +74,54 @@ export function ConnectionForm({
   const [rdpQuality, setRdpQuality] = useState<RdpQuality>("High");
   const [saveRdpConnection, setSaveRdpConnection] = useState(true);
 
-  const { saveConnection: saveConn, saveFtpConnection: saveFtpConn, saveVncConnection: saveVncConn, saveRdpConnection: saveRdpConn, connectDirect } = useConnectionStore();
+  const { saveConnection: saveConn, saveFtpConnection: saveFtpConn, saveVncConnection: saveVncConn, saveRdpConnection: saveRdpConn, updateConnection, connectDirect } = useConnectionStore();
   const { connect: ftpConnect } = useFtpStore();
   const { connect: vncConnect } = useVncStore();
   const { connect: rdpConnect } = useRdpStore();
+
+  // Pre-fill fields when editing a connection
+  useEffect(() => {
+    if (!editingConnection) return;
+    const conn = editingConnection;
+    setConnectionType(conn.connection_type as "ssh" | "ftp" | "vnc" | "rdp");
+
+    if (conn.connection_type === "ssh") {
+      setName(conn.name);
+      setHost(conn.host);
+      setPort(conn.port);
+      setUsername(conn.username || "");
+      setSaveConnection(true);
+      if (conn.auth_method) {
+        if (conn.auth_method.auth_type === "Password") {
+          setAuthType("password");
+        } else if (conn.auth_method.auth_type === "PublicKey") {
+          setAuthType("publickey");
+          setPrivateKeyPath(conn.auth_method.private_key_path || "");
+        } else if (conn.auth_method.auth_type === "Agent") {
+          setAuthType("agent");
+        }
+      }
+    } else if (conn.connection_type === "ftp") {
+      setFtpName(conn.name);
+      setFtpHost(conn.host);
+      setFtpPort(conn.port);
+      setUseAnonymous(conn.anonymous || false);
+      setFtpUsername(conn.username || "");
+      setSaveFtpConnection(true);
+    } else if (conn.connection_type === "vnc") {
+      setVncName(conn.name);
+      setVncHost(conn.host);
+      setVncPort(conn.port);
+      setSaveVncConnection(true);
+    } else if (conn.connection_type === "rdp") {
+      setRdpName(conn.name);
+      setRdpHost(conn.host);
+      setRdpPort(conn.port);
+      setRdpUsername(conn.username || "");
+      setRdpDomain(conn.domain || "");
+      setSaveRdpConnection(true);
+    }
+  }, [editingConnection]);
 
   const resetForm = () => {
     // SSH
@@ -128,6 +175,25 @@ export function ConnectionForm({
     setError(null);
 
     try {
+      // Edit mode: just update the connection and close
+      if (isEditing && editingConnection) {
+        await updateConnection(
+          editingConnection.id,
+          name,
+          "ssh",
+          host,
+          port,
+          username,
+          authType,
+          authType === "publickey" ? privateKeyPath : undefined,
+          authType === "password" ? password : undefined
+        );
+        toast.success(`Connection "${name}" updated`);
+        resetForm();
+        onClose();
+        return;
+      }
+
       let auth: AuthMethod;
       switch (authType) {
         case "password":
@@ -173,7 +239,7 @@ export function ConnectionForm({
 
       toast.success(`Connected to ${host}`);
       onConnected?.(sessionInfo.id);
-      
+
       resetForm();
       onClose();
     } catch (err) {
@@ -191,6 +257,26 @@ export function ConnectionForm({
     setError(null);
 
     try {
+      // Edit mode: just update and close
+      if (isEditing && editingConnection) {
+        await updateConnection(
+          editingConnection.id,
+          ftpName,
+          "ftp",
+          ftpHost,
+          ftpPort,
+          useAnonymous ? undefined : ftpUsername,
+          undefined,
+          undefined,
+          useAnonymous ? undefined : ftpPassword,
+          useAnonymous
+        );
+        toast.success(`Connection "${ftpName}" updated`);
+        resetForm();
+        onClose();
+        return;
+      }
+
       // Save connection if requested
       if (saveFtpConnection && ftpName) {
         await saveFtpConn(
@@ -229,6 +315,25 @@ export function ConnectionForm({
     setError(null);
 
     try {
+      // Edit mode: just update and close
+      if (isEditing && editingConnection) {
+        await updateConnection(
+          editingConnection.id,
+          vncName,
+          "vnc",
+          vncHost,
+          vncPort,
+          undefined,
+          undefined,
+          undefined,
+          vncPassword || undefined
+        );
+        toast.success(`Connection "${vncName}" updated`);
+        resetForm();
+        onClose();
+        return;
+      }
+
       // Save connection if requested
       if (saveVncConnection && vncName) {
         await saveVncConn(
@@ -274,6 +379,27 @@ export function ConnectionForm({
     setError(null);
 
     try {
+      // Edit mode: just update and close
+      if (isEditing && editingConnection) {
+        await updateConnection(
+          editingConnection.id,
+          rdpName,
+          "rdp",
+          rdpHost,
+          rdpPort,
+          rdpUsername,
+          undefined,
+          undefined,
+          rdpPassword || undefined,
+          undefined,
+          rdpDomain || undefined
+        );
+        toast.success(`Connection "${rdpName}" updated`);
+        resetForm();
+        onClose();
+        return;
+      }
+
       // Save connection if requested
       if (saveRdpConnection && rdpName) {
         await saveRdpConn(
@@ -332,20 +458,20 @@ export function ConnectionForm({
         className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">New Connection</h2>
+        <div className="sticky top-0 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-700 px-5 py-3">
+          <h2 className="text-base font-semibold text-neutral-900 dark:text-white">{isEditing ? "Edit Connection" : "New Connection"}</h2>
         </div>
-        
-        <div className="p-6">
-          {/* Tab Selection */}
-          <div className="flex border-b border-neutral-200 dark:border-neutral-700 mb-6">
+
+        <div className="p-5">
+          {/* Tab Selection (disabled when editing) */}
+          <div className={`flex border-b border-neutral-200 dark:border-neutral-700 mb-4 ${isEditing ? "pointer-events-none opacity-60" : ""}`}>
             <button
               type="button"
               onClick={() => {
                 setConnectionType("ssh");
                 setError(null);
               }}
-              className={`px-4 py-2 font-medium text-sm transition-colors ${
+              className={`px-3 py-1.5 font-medium text-xs transition-colors ${
                 connectionType === "ssh"
                   ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
                   : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200"
@@ -359,7 +485,7 @@ export function ConnectionForm({
                 setConnectionType("ftp");
                 setError(null);
               }}
-              className={`px-4 py-2 font-medium text-sm transition-colors ${
+              className={`px-3 py-1.5 font-medium text-xs transition-colors ${
                 connectionType === "ftp"
                   ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
                   : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200"
@@ -373,7 +499,7 @@ export function ConnectionForm({
                 setConnectionType("vnc");
                 setError(null);
               }}
-              className={`px-4 py-2 font-medium text-sm transition-colors ${
+              className={`px-3 py-1.5 font-medium text-xs transition-colors ${
                 connectionType === "vnc"
                   ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
                   : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200"
@@ -387,7 +513,7 @@ export function ConnectionForm({
                 setConnectionType("rdp");
                 setError(null);
               }}
-              className={`px-4 py-2 font-medium text-sm transition-colors ${
+              className={`px-3 py-1.5 font-medium text-xs transition-colors ${
                 connectionType === "rdp"
                   ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
                   : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200"
@@ -398,7 +524,7 @@ export function ConnectionForm({
           </div>
 
           {connectionType === "ssh" && (
-            <form onSubmit={handleSshConnect} className="space-y-4">
+            <form onSubmit={handleSshConnect} className="space-y-3">
               {error && connectionType === "ssh" && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-lg px-3 py-2.5 text-red-700 dark:text-red-400 text-sm">
                   {error}
@@ -406,7 +532,7 @@ export function ConnectionForm({
               )}
 
               <TextField className="space-y-2">
-                <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-host">Host</label>
+                <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-host">Host</label>
                 <Input variant="secondary" 
                   id="ssh-host"
                   type="text"
@@ -420,7 +546,7 @@ export function ConnectionForm({
 
               <div className="grid grid-cols-2 gap-3">
                 <TextField className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-port">Port</label>
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-port">Port</label>
                   <Input variant="secondary" 
                     id="ssh-port"
                     type="number"
@@ -431,7 +557,7 @@ export function ConnectionForm({
                   />
                 </TextField>
                 <TextField className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-username">Username</label>
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-username">Username</label>
                   <Input variant="secondary" 
                     id="ssh-username"
                     type="text"
@@ -444,7 +570,7 @@ export function ConnectionForm({
 
               {/* Authentication */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Authentication</label>
+                <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100">Authentication</label>
                 <div className="flex gap-4">
                   {(["password", "publickey", "agent"] as const).map((type) => (
                     <label
@@ -472,7 +598,7 @@ export function ConnectionForm({
               {/* Password field */}
               {authType === "password" && (
                 <TextField className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-password">Password</label>
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ssh-password">Password</label>
                   <Input variant="secondary" 
                     id="ssh-password"
                     type="password"
@@ -484,9 +610,9 @@ export function ConnectionForm({
 
               {/* Public key fields */}
               {authType === "publickey" && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <TextField className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="privateKeyPath">Private Key Path</label>
+                    <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="privateKeyPath">Private Key Path</label>
                     <Input variant="secondary" 
                       id="privateKeyPath"
                       type="text"
@@ -496,7 +622,7 @@ export function ConnectionForm({
                     />
                   </TextField>
                   <TextField className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="passphrase">Passphrase (optional)</label>
+                    <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="passphrase">Passphrase (optional)</label>
                     <Input variant="secondary" 
                       id="passphrase"
                       type="password"
@@ -507,35 +633,37 @@ export function ConnectionForm({
                 </div>
               )}
 
-              {/* Save connection checkbox */}
-              <div className="pt-2">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
-                  <Input variant="secondary" 
-                    type="checkbox"
-                    checked={saveConnection}
-                    onChange={(e) => setSaveConnection(e.target.checked)}
-                    className="cursor-pointer accent-primary"
-                  />
-                  Save connection
-                </label>
-              </div>
+              {/* Save connection checkbox (hidden in edit mode) */}
+              {!isEditing && (
+                <div className="pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
+                    <Input variant="secondary"
+                      type="checkbox"
+                      checked={saveConnection}
+                      onChange={(e) => setSaveConnection(e.target.checked)}
+                      className="cursor-pointer accent-primary"
+                    />
+                    Save connection
+                  </label>
+                </div>
+              )}
 
-              {/* Connection name (shown when save is checked) */}
-              {saveConnection && (
+              {/* Connection name (shown when save is checked or editing) */}
+              {(saveConnection || isEditing) && (
                 <TextField className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="connectionName">Connection Name</label>
-                  <Input variant="secondary" 
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="connectionName">Connection Name</label>
+                  <Input variant="secondary"
                     id="connectionName"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="My Server"
-                    required={saveConnection}
+                    required={saveConnection || isEditing}
                   />
                 </TextField>
               )}
 
-              <div className="flex justify-end gap-3 pt-6 border-t border-neutral-200 dark:border-neutral-700 mt-4">
+              <div className="flex justify-end gap-2 pt-4 border-t border-neutral-200 dark:border-neutral-700 mt-3">
                 <Button
                   type="button"
                   // variant="light"
@@ -545,8 +673,8 @@ export function ConnectionForm({
                 >
                   Cancel
                 </Button>
-                <Button type="submit" isDisabled={connecting} className="min-w-[110px]">
-                  {connecting ? "Connecting..." : "Connect"}
+                <Button type="submit" isDisabled={connecting} className="min-w-[100px]">
+                  {connecting ? (isEditing ? "Saving..." : "Connecting...") : (isEditing ? "Save" : "Connect")}
                 </Button>
               </div>
             </form>
@@ -554,7 +682,7 @@ export function ConnectionForm({
 
           {/* FTP Form */}
           {connectionType === "ftp" && (
-            <form onSubmit={handleFtpConnect} className="space-y-4">
+            <form onSubmit={handleFtpConnect} className="space-y-3">
               {error && connectionType === "ftp" && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-lg px-3 py-2.5 text-red-700 dark:text-red-400 text-sm">
                   {error}
@@ -563,7 +691,7 @@ export function ConnectionForm({
 
               <div className="grid grid-cols-3 gap-3">
                 <TextField className="col-span-2 space-y-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-host">Host</label>
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-host">Host</label>
                   <Input variant="secondary" 
                     id="ftp-host"
                     type="text"
@@ -574,7 +702,7 @@ export function ConnectionForm({
                   />
                 </TextField>
                 <TextField className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-port">Port</label>
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-port">Port</label>
                   <Input variant="secondary" 
                     id="ftp-port"
                     type="number"
@@ -602,7 +730,7 @@ export function ConnectionForm({
               {!useAnonymous && (
                 <>
                   <TextField className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-username">Username</label>
+                    <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-username">Username</label>
                     <Input variant="secondary" 
                       id="ftp-username"
                       type="text"
@@ -614,7 +742,7 @@ export function ConnectionForm({
                   </TextField>
 
                   <TextField className="space-y-2">
-                    <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-password">Password</label>
+                    <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-password">Password</label>
                     <Input variant="secondary" 
                       id="ftp-password"
                       type="password"
@@ -627,38 +755,39 @@ export function ConnectionForm({
                 </>
               )}
 
-              {/* Save connection checkbox */}
-              <div className="pt-2">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
-                  <Input variant="secondary" 
-                    type="checkbox"
-                    checked={saveFtpConnection}
-                    onChange={(e) => setSaveFtpConnection(e.target.checked)}
-                    className="cursor-pointer accent-primary"
-                  />
-                  Save connection
-                </label>
-              </div>
+              {/* Save connection checkbox (hidden in edit mode) */}
+              {!isEditing && (
+                <div className="pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
+                    <Input variant="secondary"
+                      type="checkbox"
+                      checked={saveFtpConnection}
+                      onChange={(e) => setSaveFtpConnection(e.target.checked)}
+                      className="cursor-pointer accent-primary"
+                    />
+                    Save connection
+                  </label>
+                </div>
+              )}
 
-              {/* Connection name (shown when save is checked) */}
-              {saveFtpConnection && (
+              {/* Connection name (shown when save is checked or editing) */}
+              {(saveFtpConnection || isEditing) && (
                 <TextField className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-connectionName">Connection Name</label>
-                  <Input variant="secondary" 
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="ftp-connectionName">Connection Name</label>
+                  <Input variant="secondary"
                     id="ftp-connectionName"
                     type="text"
                     value={ftpName}
                     onChange={(e) => setFtpName(e.target.value)}
                     placeholder="My FTP Server"
-                    required={saveFtpConnection}
+                    required={saveFtpConnection || isEditing}
                   />
                 </TextField>
               )}
 
-              <div className="flex justify-end gap-3 pt-6 border-t border-neutral-200 dark:border-neutral-700 mt-4">
+              <div className="flex justify-end gap-2 pt-4 border-t border-neutral-200 dark:border-neutral-700 mt-3">
                 <Button
                   type="button"
-                  // variant="light"
                   onClick={handleClose}
                   isDisabled={connecting}
                   className="px-5"
@@ -668,17 +797,16 @@ export function ConnectionForm({
                 <Button
                   type="submit"
                   isDisabled={connecting || !ftpHost}
-                  className="min-w-[110px]"
-                  // color="primary"
+                  className="min-w-[100px]"
                 >
-                  {connecting ? "Connecting..." : "Connect"}
+                  {connecting ? (isEditing ? "Saving..." : "Connecting...") : (isEditing ? "Save" : "Connect")}
                 </Button>
               </div>
             </form>
           )}
 
           {connectionType === "vnc" && (
-            <form onSubmit={handleVncConnect} className="space-y-4">
+            <form onSubmit={handleVncConnect} className="space-y-3">
               {error && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-lg px-3 py-2.5 text-red-700 dark:text-red-400 text-sm">
                   {error}
@@ -687,7 +815,7 @@ export function ConnectionForm({
 
               <div className="grid grid-cols-3 gap-3">
                 <TextField className="space-y-2 col-span-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="vnc-host">Host</label>
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="vnc-host">Host</label>
                   <Input variant="secondary" 
                     id="vnc-host"
                     type="text"
@@ -699,7 +827,7 @@ export function ConnectionForm({
                   />
                 </TextField>
                 <TextField className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="vnc-port">Port</label>
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="vnc-port">Port</label>
                   <Input variant="secondary" 
                     id="vnc-port"
                     type="number"
@@ -712,7 +840,7 @@ export function ConnectionForm({
               </div>
 
               <TextField className="space-y-2">
-                <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="vnc-password">Password (optional)</label>
+                <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="vnc-password">Password (optional)</label>
                 <Input variant="secondary" 
                   id="vnc-password"
                   type="password"
@@ -722,33 +850,35 @@ export function ConnectionForm({
                 />
               </TextField>
 
-              <div className="pt-2">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
-                  <Input variant="secondary" 
-                    type="checkbox"
-                    checked={saveVncConnection}
-                    onChange={(e) => setSaveVncConnection(e.target.checked)}
-                    className="cursor-pointer accent-primary"
-                  />
-                  Save connection
-                </label>
-              </div>
+              {!isEditing && (
+                <div className="pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
+                    <Input variant="secondary"
+                      type="checkbox"
+                      checked={saveVncConnection}
+                      onChange={(e) => setSaveVncConnection(e.target.checked)}
+                      className="cursor-pointer accent-primary"
+                    />
+                    Save connection
+                  </label>
+                </div>
+              )}
 
-              {saveVncConnection && (
+              {(saveVncConnection || isEditing) && (
                 <TextField className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="vnc-connectionName">Connection Name</label>
-                  <Input variant="secondary" 
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="vnc-connectionName">Connection Name</label>
+                  <Input variant="secondary"
                     id="vnc-connectionName"
                     type="text"
                     value={vncName}
                     onChange={(e) => setVncName(e.target.value)}
                     placeholder="My VNC Server"
-                    required={saveVncConnection}
+                    required={saveVncConnection || isEditing}
                   />
                 </TextField>
               )}
 
-              <div className="flex justify-end gap-3 pt-6 border-t border-neutral-200 dark:border-neutral-700 mt-4">
+              <div className="flex justify-end gap-2 pt-4 border-t border-neutral-200 dark:border-neutral-700 mt-3">
                 <Button
                   type="button"
                   onClick={handleClose}
@@ -760,16 +890,16 @@ export function ConnectionForm({
                 <Button
                   type="submit"
                   isDisabled={connecting || !vncHost}
-                  className="min-w-[110px]"
+                  className="min-w-[100px]"
                 >
-                  {connecting ? "Connecting..." : "Connect"}
+                  {connecting ? (isEditing ? "Saving..." : "Connecting...") : (isEditing ? "Save" : "Connect")}
                 </Button>
               </div>
             </form>
           )}
 
           {connectionType === "rdp" && (
-            <form onSubmit={handleRdpConnect} className="space-y-4">
+            <form onSubmit={handleRdpConnect} className="space-y-3">
               {error && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-lg px-3 py-2.5 text-red-700 dark:text-red-400 text-sm">
                   {error}
@@ -778,7 +908,7 @@ export function ConnectionForm({
 
               <div className="grid grid-cols-3 gap-3">
                 <TextField className="space-y-2 col-span-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-host">Host</label>
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-host">Host</label>
                   <Input variant="secondary" 
                     id="rdp-host"
                     type="text"
@@ -790,7 +920,7 @@ export function ConnectionForm({
                   />
                 </TextField>
                 <TextField className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-port">Port</label>
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-port">Port</label>
                   <Input variant="secondary" 
                     id="rdp-port"
                     type="number"
@@ -803,7 +933,7 @@ export function ConnectionForm({
               </div>
 
               <TextField className="space-y-2">
-                <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-username">Username</label>
+                <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-username">Username</label>
                 <Input variant="secondary" 
                   id="rdp-username"
                   type="text"
@@ -815,7 +945,7 @@ export function ConnectionForm({
               </TextField>
 
               <TextField className="space-y-2">
-                <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-password">Password</label>
+                <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-password">Password</label>
                 <Input variant="secondary" 
                   id="rdp-password"
                   type="password"
@@ -827,7 +957,7 @@ export function ConnectionForm({
               </TextField>
 
               <TextField className="space-y-2">
-                <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-domain">Domain (optional)</label>
+                <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-domain">Domain (optional)</label>
                 <Input variant="secondary" 
                   id="rdp-domain"
                   type="text"
@@ -838,7 +968,7 @@ export function ConnectionForm({
               </TextField>
 
               <TextField className="space-y-2">
-                <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-resolution">Resolution</label>
+                <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-resolution">Resolution</label>
                 <select 
                   id="rdp-resolution"
                   value={rdpResolution}
@@ -855,7 +985,7 @@ export function ConnectionForm({
               </TextField>
 
               <TextField className="space-y-2">
-                <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-quality">Image Quality</label>
+                <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-quality">Image Quality</label>
                 <select 
                   id="rdp-quality"
                   value={rdpQuality}
@@ -870,33 +1000,35 @@ export function ConnectionForm({
                 </select>
               </TextField>
 
-              <div className="pt-2">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
-                  <Input variant="secondary" 
-                    type="checkbox"
-                    checked={saveRdpConnection}
-                    onChange={(e) => setSaveRdpConnection(e.target.checked)}
-                    className="cursor-pointer accent-primary"
-                  />
-                  Save connection
-                </label>
-              </div>
+              {!isEditing && (
+                <div className="pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
+                    <Input variant="secondary"
+                      type="checkbox"
+                      checked={saveRdpConnection}
+                      onChange={(e) => setSaveRdpConnection(e.target.checked)}
+                      className="cursor-pointer accent-primary"
+                    />
+                    Save connection
+                  </label>
+                </div>
+              )}
 
-              {saveRdpConnection && (
+              {(saveRdpConnection || isEditing) && (
                 <TextField className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-connectionName">Connection Name</label>
-                  <Input variant="secondary" 
+                  <label className="text-xs font-medium text-neutral-900 dark:text-neutral-100" htmlFor="rdp-connectionName">Connection Name</label>
+                  <Input variant="secondary"
                     id="rdp-connectionName"
                     type="text"
                     value={rdpName}
                     onChange={(e) => setRdpName(e.target.value)}
                     placeholder="My RDP Server"
-                    required={saveRdpConnection}
+                    required={saveRdpConnection || isEditing}
                   />
                 </TextField>
               )}
 
-              <div className="flex justify-end gap-3 pt-6 border-t border-neutral-200 dark:border-neutral-700 mt-4">
+              <div className="flex justify-end gap-2 pt-4 border-t border-neutral-200 dark:border-neutral-700 mt-3">
                 <Button
                   type="button"
                   onClick={handleClose}
@@ -907,10 +1039,10 @@ export function ConnectionForm({
                 </Button>
                 <Button
                   type="submit"
-                  isDisabled={connecting || !rdpHost || !rdpUsername || !rdpPassword}
-                  className="min-w-[110px]"
+                  isDisabled={connecting || !rdpHost || !rdpUsername || (!rdpPassword && !isEditing)}
+                  className="min-w-[100px]"
                 >
-                  {connecting ? "Connecting..." : "Connect"}
+                  {connecting ? (isEditing ? "Saving..." : "Connecting...") : (isEditing ? "Save" : "Connect")}
                 </Button>
               </div>
             </form>

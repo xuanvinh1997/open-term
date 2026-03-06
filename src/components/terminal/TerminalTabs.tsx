@@ -9,12 +9,13 @@ import { SftpBrowser } from "../sftp/SftpBrowser";
 import { VncViewer } from "../vnc/VncViewer";
 import { RdpViewer } from "../rdp/RdpViewer";
 import { cn } from "@/lib/utils";
-import { VscTerminal, VscCloud, VscRemote, VscDesktopDownload, VscFolder } from "react-icons/vsc";
+import { TextEditor } from "../editor/TextEditor";
+import { VscTerminal, VscCloud, VscRemote, VscDesktopDownload, VscFolder, VscEdit } from "react-icons/vsc";
 import { toast } from "sonner";
 import type { TerminalTab } from "../../types";
 
 export function TerminalTabs() {
-  const { tabs, ftpTabs, sftpTabs, vncTabs, rdpTabs, activeTabId, createTerminal, closeTerminal, closeFtpTab, closeSftpTab, closeVncTab, closeRdpTab, setActiveTab } =
+  const { tabs, ftpTabs, sftpTabs, vncTabs, rdpTabs, editorTabs, activeTabId, createTerminal, closeTerminal, closeFtpTab, closeSftpTab, closeVncTab, closeRdpTab, closeEditorTab, setActiveTab } =
     useTerminalStore();
   const { disconnect: ftpDisconnect } = useFtpStore();  const { closeSftp: sftpDisconnect } = useSftpStore();  const { disconnect: vncDisconnect } = useVncStore();
   const { disconnect: rdpDisconnect } = useRdpStore();
@@ -24,7 +25,8 @@ export function TerminalTabs() {
     ...ftpTabs.map(t => ({ ...t, isFtp: true })),
     ...sftpTabs.map(t => ({ ...t, isSftp: true })),
     ...vncTabs.map(t => ({ ...t, isVnc: true })),
-    ...rdpTabs.map(t => ({ ...t, isRdp: true }))
+    ...rdpTabs.map(t => ({ ...t, isRdp: true })),
+    ...editorTabs.map(t => ({ ...t, isEditor: true }))
   ];
 
   const handleNewTab = async () => {
@@ -37,10 +39,18 @@ export function TerminalTabs() {
     isFtp: boolean,
     isSftp: boolean,
     isVnc: boolean,
-    isRdp: boolean
+    isRdp: boolean,
+    isEditor: boolean
   ) => {
     e.stopPropagation();
-    if (isFtp) {
+    if (isEditor) {
+      const editorTab = editorTabs.find(t => t.id === tabId);
+      if (editorTab?.isDirty) {
+        const confirmed = window.confirm(`"${editorTab.title}" has unsaved changes. Close anyway?`);
+        if (!confirmed) return;
+      }
+      closeEditorTab(tabId);
+    } else if (isFtp) {
       await ftpDisconnect();
       closeFtpTab(tabId);
     } else if (isSftp) {
@@ -72,51 +82,57 @@ export function TerminalTabs() {
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
-      <div className="flex items-center h-10 bg-neutral-200 dark:bg-neutral-900 border-b border-neutral-300 dark:border-neutral-700 overflow-x-auto shrink-0">
+      <div className="flex items-center h-8 bg-neutral-200 dark:bg-neutral-900 border-b border-neutral-300 dark:border-neutral-700 overflow-x-auto shrink-0">
         {allTabs.map((tab) => {
           const isFtp = 'isFtp' in tab && tab.isFtp;
           const isSftp = 'isSftp' in tab && tab.isSftp;
           const isVnc = 'isVnc' in tab && tab.isVnc;
           const isRdp = 'isRdp' in tab && tab.isRdp;
+          const isEditor = 'isEditor' in tab && tab.isEditor;
+          const isDirty = 'isDirty' in tab && tab.isDirty;
           return (
             <div
               key={tab.id}
               className={cn(
-                "flex items-center gap-2 px-3 h-full border-r border-neutral-300 dark:border-neutral-700 cursor-pointer select-none transition-colors group min-w-[120px] max-w-[200px]",
+                "flex items-center gap-1.5 px-2 h-full border-r border-neutral-300 dark:border-neutral-700 cursor-pointer select-none transition-colors group min-w-[100px] max-w-[180px]",
                 activeTabId === tab.id
                   ? "bg-neutral-300 dark:bg-neutral-800 text-neutral-900 dark:text-white"
                   : "bg-neutral-200 dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-300 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white"
               )}
               onClick={() => setActiveTab(tab.id)}
             >
-              {isFtp ? (
-                <VscCloud className="h-3.5 w-3.5 shrink-0" />
+              {isEditor ? (
+                <VscEdit className="h-3 w-3 shrink-0" />
+              ) : isFtp ? (
+                <VscCloud className="h-3 w-3 shrink-0" />
               ) : isSftp ? (
-                <VscFolder className="h-3.5 w-3.5 shrink-0" />
+                <VscFolder className="h-3 w-3 shrink-0" />
               ) : isVnc ? (
-                <VscRemote className="h-3.5 w-3.5 shrink-0" />
+                <VscRemote className="h-3 w-3 shrink-0" />
               ) : isRdp ? (
-                <VscDesktopDownload className="h-3.5 w-3.5 shrink-0" />
+                <VscDesktopDownload className="h-3 w-3 shrink-0" />
               ) : (
-                <VscTerminal className="h-3.5 w-3.5 shrink-0" />
+                <VscTerminal className="h-3 w-3 shrink-0" />
               )}
-              <span className="flex-1 truncate text-sm">{tab.title}</span>
+              <span className="flex-1 truncate text-xs">
+                {isDirty ? "● " : ""}{tab.title}
+              </span>
               {!isFtp && !isSftp && !isVnc && !isRdp && 'sessionInfo' in tab && tab.sessionInfo.session_type.type === 'Ssh' && (
                 <button
-                  className="flex items-center justify-center w-5 h-5 rounded hover:bg-blue-500 dark:hover:bg-blue-600 text-neutral-600 dark:text-neutral-400 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                  className="flex items-center justify-center w-4 h-4 rounded hover:bg-blue-500 dark:hover:bg-blue-600 text-neutral-600 dark:text-neutral-400 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleOpenSftp(tab as TerminalTab);
                   }}
                   title="Open SFTP browser"
                 >
-                  <VscFolder className="h-3.5 w-3.5" />
+                  <VscFolder className="h-3 w-3" />
                 </button>
               )}
               <button
-                className="flex items-center justify-center w-5 h-5 rounded hover:bg-neutral-400 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors opacity-0 group-hover:opacity-100"
-                onClick={(e) => handleCloseTab(e, tab.id, isFtp, isSftp, isVnc, isRdp)}
-                title={isFtp ? "Close FTP" : isSftp ? "Close SFTP" : isVnc ? "Close VNC" : isRdp ? "Close RDP" : "Close terminal"}
+                className="flex items-center justify-center w-4 h-4 rounded hover:bg-neutral-400 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                onClick={(e) => handleCloseTab(e, tab.id, isFtp, isSftp, isVnc, isRdp, isEditor)}
+                title={isEditor ? "Close editor" : isFtp ? "Close FTP" : isSftp ? "Close SFTP" : isVnc ? "Close VNC" : isRdp ? "Close RDP" : "Close terminal"}
               >
                 ×
               </button>
@@ -124,7 +140,7 @@ export function TerminalTabs() {
           );
         })}
         <button 
-          className="flex items-center justify-center px-3 h-full text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-300 dark:hover:bg-neutral-800 transition-colors border-r border-neutral-300 dark:border-neutral-700" 
+          className="flex items-center justify-center px-2 h-full text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-300 dark:hover:bg-neutral-800 transition-colors border-r border-neutral-300 dark:border-neutral-700" 
           onClick={handleNewTab} 
           title="New terminal"
         >
@@ -190,6 +206,20 @@ export function TerminalTabs() {
               width={tab.width} 
               height={tab.height} 
               isActive={activeTabId === tab.id} 
+            />
+          </div>
+        ))}
+        {editorTabs.map((tab) => (
+          <div
+            key={tab.id}
+            className={cn(
+              "absolute inset-0",
+              activeTabId === tab.id ? "block" : "hidden"
+            )}
+          >
+            <TextEditor
+              tab={tab}
+              isActive={activeTabId === tab.id}
             />
           </div>
         ))}

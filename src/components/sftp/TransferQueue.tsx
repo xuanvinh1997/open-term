@@ -74,9 +74,9 @@ export function TransferQueue({ transfers }: TransferQueueProps) {
   }
 
   return (
-    <div className="border-t border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 flex flex-col max-h-80">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-300 dark:border-neutral-700 shrink-0">
-        <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+    <div className="border-t border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 flex flex-col max-h-48">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-neutral-300 dark:border-neutral-700 shrink-0">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
           Transfers ({transfers.length})
         </span>
       </div>
@@ -87,16 +87,16 @@ export function TransferQueue({ transfers }: TransferQueueProps) {
             <div
               key={transfer.id}
               className={cn(
-                "px-4 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0",
+                "px-3 py-2 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0",
                 statusString === "completed" && "bg-green-50 dark:bg-green-900/10",
                 statusString === "failed" && "bg-red-50 dark:bg-red-900/10"
               )}
             >
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="flex-shrink-0 text-neutral-600 dark:text-neutral-400" title={transfer.is_upload ? "Upload" : "Download"}>
                   {getDirectionIcon(transfer.is_upload)}
                 </span>
-                <span className="flex-1 text-sm text-neutral-900 dark:text-neutral-100 truncate" title={transfer.filename}>
+                <span className="flex-1 text-xs text-neutral-900 dark:text-neutral-100 truncate" title={transfer.filename}>
                   {transfer.filename}
                 </span>
                 <span className="flex-shrink-0">
@@ -104,7 +104,7 @@ export function TransferQueue({ transfers }: TransferQueueProps) {
                 </span>
               </div>
               {(transfer.status === "InProgress" || transfer.status === "Pending") && (
-                <div className="h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden mb-1">
+                <div className="h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden mb-1">
                   <div
                     className="h-full bg-blue-500 transition-all duration-300"
                     style={{
@@ -115,7 +115,7 @@ export function TransferQueue({ transfers }: TransferQueueProps) {
                   />
                 </div>
               )}
-              <div className="text-xs text-neutral-600 dark:text-neutral-400">
+              <div className="text-[11px] text-neutral-600 dark:text-neutral-400">
                 {getStatusDetails(transfer)}
               </div>
             </div>

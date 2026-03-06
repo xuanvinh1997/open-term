@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
-import type { SessionInfo, TerminalTab, FtpTab, SftpTab, VncTab, RdpTab } from "../types";
+import type { SessionInfo, TerminalTab, FtpTab, SftpTab, VncTab, RdpTab, EditorTab } from "../types";
 
 interface TerminalState {
   tabs: TerminalTab[];
@@ -8,6 +8,7 @@ interface TerminalState {
   sftpTabs: SftpTab[];
   vncTabs: VncTab[];
   rdpTabs: RdpTab[];
+  editorTabs: EditorTab[];
   activeTabId: string | null;
 
   // Actions
@@ -21,6 +22,9 @@ interface TerminalState {
   closeVncTab: (tabId: string) => void;
   addRdpTab: (rdpTab: RdpTab) => void;
   closeRdpTab: (tabId: string) => void;
+  addEditorTab: (tab: EditorTab) => void;
+  closeEditorTab: (tabId: string) => void;
+  updateEditorTab: (tabId: string, updates: Partial<EditorTab>) => void;
   setActiveTab: (tabId: string) => void;
   updateTabTitle: (tabId: string, title: string) => void;
 }
@@ -31,6 +35,7 @@ export const useTerminalStore = create<TerminalState>((set, _get) => ({
   sftpTabs: [],
   vncTabs: [],
   rdpTabs: [],
+  editorTabs: [],
   activeTabId: null,
 
   createTerminal: async () => {
@@ -220,6 +225,54 @@ export const useTerminalStore = create<TerminalState>((set, _get) => ({
 
   setActiveTab: (tabId: string) => {
     set({ activeTabId: tabId });
+  },
+
+  addEditorTab: (tab: EditorTab) => {
+    set((state) => {
+      // Don't open duplicate tabs for the same file
+      const existing = state.editorTabs.find(
+        (t) => t.filePath === tab.filePath && t.source === tab.source && t.sessionId === tab.sessionId
+      );
+      if (existing) {
+        return { activeTabId: existing.id };
+      }
+      return {
+        editorTabs: [...state.editorTabs, tab],
+        activeTabId: tab.id,
+      };
+    });
+  },
+
+  closeEditorTab: (tabId: string) => {
+    set((state) => {
+      const newEditorTabs = state.editorTabs.filter((tab) => tab.id !== tabId);
+      let newActiveTabId = state.activeTabId;
+
+      if (state.activeTabId === tabId) {
+        const closedIndex = state.editorTabs.findIndex((tab) => tab.id === tabId);
+        if (newEditorTabs.length > 0) {
+          newActiveTabId =
+            newEditorTabs[Math.min(closedIndex, newEditorTabs.length - 1)]?.id ?? null;
+        } else if (state.tabs.length > 0) {
+          newActiveTabId = state.tabs[0]?.id ?? null;
+        } else {
+          newActiveTabId = null;
+        }
+      }
+
+      return {
+        editorTabs: newEditorTabs,
+        activeTabId: newActiveTabId,
+      };
+    });
+  },
+
+  updateEditorTab: (tabId: string, updates: Partial<EditorTab>) => {
+    set((state) => ({
+      editorTabs: state.editorTabs.map((tab) =>
+        tab.id === tabId ? { ...tab, ...updates } : tab
+      ),
+    }));
   },
 
   updateTabTitle: (tabId: string, title: string) => {

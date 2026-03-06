@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useConnectionStore } from "../../stores/connectionStore";
 import { useTerminalStore } from "../../stores/terminalStore";
 import { useFtpStore } from "../../stores/ftpStore";
@@ -9,15 +9,16 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { invoke } from "@tauri-apps/api/core";
 import type { ConnectionProfile } from "../../types";
-import { VscAdd, VscTrash } from "react-icons/vsc";
+import { VscAdd, VscEdit, VscSync, VscTrash } from "react-icons/vsc";
 
 interface ConnectionManagerProps {
   onNewConnection: () => void;
+  onEditConnection: (connection: ConnectionProfile) => void;
   onOpenSftp: (sessionId: string) => void;
   onOpenFtp: () => void;
 }
 
-export function ConnectionManager({ onNewConnection, onOpenSftp: _onOpenSftp, onOpenFtp: _onOpenFtp }: ConnectionManagerProps) {
+export function ConnectionManager({ onNewConnection, onEditConnection, onOpenSftp: _onOpenSftp, onOpenFtp: _onOpenFtp }: ConnectionManagerProps) {
   const {
     connections,
     loading,
@@ -41,9 +42,32 @@ export function ConnectionManager({ onNewConnection, onOpenSftp: _onOpenSftp, on
   const [password, setPassword] = useState("");
   const [passphrase, setPassphrase] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<ConnectionProfile | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    connection: ConnectionProfile;
+  } | null>(null);
 
   useEffect(() => {
     loadConnections();
+  }, []);
+
+  // Close context menu on outside click or scroll
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    window.addEventListener("click", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [contextMenu]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, conn: ConnectionProfile) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, connection: conn });
   }, []);
 
   const handleConnect = async (connection: ConnectionProfile) => {
@@ -156,7 +180,7 @@ export function ConnectionManager({ onNewConnection, onOpenSftp: _onOpenSftp, on
           connection.port!,
           connection.username!,
           password,
-          (connection as any).domain || undefined,
+          connection.domain || undefined,
           1920,
           1080,
           "High",  // Default to high quality
@@ -254,7 +278,7 @@ export function ConnectionManager({ onNewConnection, onOpenSftp: _onOpenSftp, on
           passwordPrompt.connection.port!,
           passwordPrompt.connection.username!,
           password,
-          (passwordPrompt.connection as any).domain || undefined,
+          passwordPrompt.connection.domain || undefined,
           1920,
           1080,
           "High",  // Default to high quality
@@ -333,11 +357,11 @@ export function ConnectionManager({ onNewConnection, onOpenSftp: _onOpenSftp, on
 
   return (
     <div className="flex flex-col h-full w-full">
-      <div className="flex items-center justify-between h-10 border-b border-neutral-300 dark:border-white/10 shrink-0 px-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 select-none">
+      <div className="flex items-center justify-between h-8 border-b border-neutral-300 dark:border-white/10 shrink-0 px-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 select-none">
           Connections
         </h3>
-        <Button size="sm" variant="ghost" className="h-6 text-xs min-w-16 bg-blue-500 text-white dark:bg-blue-600 dark:text-white hover:bg-blue-600 dark:hover:bg-blue-700 font-medium gap-1 flex" onPress={onNewConnection}>
+        <Button size="sm" variant="ghost" className="h-5 text-[11px] min-w-14 bg-blue-500 text-white dark:bg-blue-600 dark:text-white hover:bg-blue-600 dark:hover:bg-blue-700 font-medium gap-0.5 flex" onPress={onNewConnection}>
           <VscAdd /> New
         </Button>
       </div>
@@ -359,30 +383,24 @@ export function ConnectionManager({ onNewConnection, onOpenSftp: _onOpenSftp, on
         </div>
       ) : (
         <div className="flex-1 overflow-auto">
-          <div className="p-2">
+          <div className="p-1.5">
             {connections.map((conn) => (
               <div
                 key={conn.id}
                 className={cn(
-                  "flex items-center px-3 py-2.5 cursor-pointer rounded-lg group transition-colors duration-150",
+                  "flex items-center px-2.5 py-1.5 cursor-pointer rounded-md group transition-colors duration-150",
                   "hover:bg-neutral-200 dark:hover:bg-neutral-700/50",
                   connectingId === conn.id && "opacity-50 pointer-events-none"
                 )}
                 onClick={() => handleConnect(conn)}
+                onContextMenu={(e) => handleContextMenu(e, conn)}
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-neutral-900 dark:text-neutral-100 truncate font-medium">{conn.name}</div>
-                  <div className="text-xs text-neutral-600 dark:text-neutral-400 truncate mt-1">
+                  <div className="text-[11px] text-neutral-600 dark:text-neutral-400 truncate mt-0.5">
                     {formatConnectionInfo(conn)}
                   </div>
                 </div>
-                <button
-                  className="p-1.5 text-neutral-600 dark:text-neutral-400 opacity-0 group-hover:opacity-100 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
-                  onClick={(e) => handleDelete(conn, e)}
-                  title="Delete connection"
-                >
-                  <VscTrash className="h-4 w-4" />
-                </button>
               </div>
             ))}
           </div>
@@ -500,6 +518,45 @@ export function ConnectionManager({ onNewConnection, onOpenSftp: _onOpenSftp, on
           </Modal.Container>
         </Modal.Backdrop>
       </Modal>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 min-w-[140px] bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-md shadow-lg py-1"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+            onClick={() => {
+              handleConnect(contextMenu.connection);
+              setContextMenu(null);
+            }}
+          >
+            <VscSync className="h-3 w-3" />
+            Connect
+          </button>
+          <button
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+            onClick={() => {
+              onEditConnection(contextMenu.connection);
+              setContextMenu(null);
+            }}
+          >
+            <VscEdit className="h-3 w-3" /> Edit
+          </button>
+          <div className="h-px bg-neutral-200 dark:bg-neutral-700 my-0.5" />
+          <button
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            onClick={() => {
+              setDeleteConfirm(contextMenu.connection);
+              setContextMenu(null);
+            }}
+          >
+            <VscTrash className="h-3 w-3" /> Delete
+          </button>
+        </div>
+      )}
 
     </div>
   );

@@ -54,6 +54,15 @@ export interface RdpTab {
   connectionId?: string;
 }
 
+export interface EditorTab {
+  id: string;
+  title: string;
+  filePath: string;
+  source: "local" | "sftp" | "ftp";
+  sessionId?: string;
+  isDirty: boolean;
+}
+
 // Auth types
 export type AuthMethod =
   | { type: "Password"; password: string }
@@ -103,6 +112,7 @@ export interface ConnectionProfile {
   username?: string;
   auth_method?: StoredAuthMethod;
   anonymous?: boolean;
+  domain?: string | null;
   created_at: string;
   last_used: string | null;
 }

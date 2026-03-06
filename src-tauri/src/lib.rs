@@ -16,7 +16,7 @@ use ssh::AuthMethod;
 use state::AppState;
 use std::collections::HashMap;
 use std::sync::Arc;
-use storage::{ConnectionProfile, ConnectionStorage, KeychainManager, StoredAuthMethod};
+use storage::{ConnectionProfile, ConnectionStorage, ConnectionType, KeychainManager, StoredAuthMethod};
 use tauri::{AppHandle, Emitter, State};
 use terminal::session::SessionInfo;
 use vnc::VncManager;
@@ -222,6 +222,82 @@ async fn save_rdp_connection(
     if let Some(pwd) = password {
         if !pwd.is_empty() {
             KeychainManager::store_password(&profile.id, &pwd)
+                .map_err(|e| format!("Failed to store password: {}", e))?;
+        }
+    }
+
+    storage
+        .save_connection(profile.clone())
+        .map_err(|e| e.to_string())?;
+
+    Ok(profile)
+}
+
+#[tauri::command]
+async fn update_connection(
+    id: String,
+    name: String,
+    connection_type: String,
+    host: String,
+    port: u16,
+    username: Option<String>,
+    auth_type: Option<String>,
+    private_key_path: Option<String>,
+    password: Option<String>,
+    anonymous: Option<bool>,
+    domain: Option<String>,
+) -> Result<ConnectionProfile, String> {
+    let storage = ConnectionStorage::new().map_err(|e| e.to_string())?;
+
+    // Get existing profile to preserve created_at and last_used
+    let existing = storage.get(&id).map_err(|e| e.to_string())?;
+
+    let conn_type = match connection_type.as_str() {
+        "ssh" => {
+            let auth_method = match auth_type.as_deref().unwrap_or("password") {
+                "password" => StoredAuthMethod::Password,
+                "publickey" => StoredAuthMethod::PublicKey {
+                    private_key_path: private_key_path.unwrap_or_default(),
+                },
+                "agent" => StoredAuthMethod::Agent,
+                _ => return Err("Invalid auth type".to_string()),
+            };
+            ConnectionType::Ssh {
+                host,
+                port,
+                username: username.unwrap_or_default(),
+                auth_method,
+            }
+        }
+        "ftp" => ConnectionType::Ftp {
+            host,
+            port,
+            username,
+            anonymous: anonymous.unwrap_or(false),
+        },
+        "vnc" => ConnectionType::Vnc { host, port },
+        "rdp" => ConnectionType::Rdp {
+            host,
+            port,
+            username: username.unwrap_or_default(),
+            domain,
+        },
+        _ => return Err("Invalid connection type".to_string()),
+    };
+
+    let profile = ConnectionProfile {
+        id: id.clone(),
+        name,
+        connection_type: conn_type,
+        created_at: existing.created_at,
+        last_used: existing.last_used,
+    };
+
+    // Update password in keychain
+    let _ = KeychainManager::delete_password(&id);
+    if let Some(pwd) = password {
+        if !pwd.is_empty() {
+            KeychainManager::store_password(&id, &pwd)
                 .map_err(|e| format!("Failed to store password: {}", e))?;
         }
     }
@@ -880,6 +956,128 @@ async fn ftp_upload_folder(
     Ok(progress)
 }
 
+// ============ File Editor Commands ============
+
+#[tauri::command]
+async fn read_local_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn write_local_file(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn sftp_read_file(
+    sftp_sessions: State<'_, SftpSessions>,
+    sftp_id: String,
+    remote_path: String,
+) -> Result<String, String> {
+    let sessions = sftp_sessions.lock();
+    let browser = sessions
+        .get(&sftp_id)
+        .ok_or_else(|| "SFTP session not found".to_string())?;
+
+    // Set blocking mode for the operation (session is normally non-blocking)
+    let session = browser.session.lock();
+    session.set_blocking(true);
+
+    let sftp = browser.sftp.lock();
+    let mut file = sftp
+        .open(std::path::Path::new(&remote_path))
+        .map_err(|e| {
+            session.set_blocking(false);
+            format!("Failed to open remote file: {}", e)
+        })?;
+
+    let mut contents = String::new();
+    use std::io::Read;
+    let result = file.read_to_string(&mut contents)
+        .map_err(|e| format!("Failed to read remote file: {}", e));
+
+    session.set_blocking(false);
+    result?;
+
+    Ok(contents)
+}
+
+#[tauri::command]
+async fn sftp_write_file(
+    sftp_sessions: State<'_, SftpSessions>,
+    sftp_id: String,
+    remote_path: String,
+    content: String,
+) -> Result<(), String> {
+    let sessions = sftp_sessions.lock();
+    let browser = sessions
+        .get(&sftp_id)
+        .ok_or_else(|| "SFTP session not found".to_string())?;
+
+    // Set blocking mode for the operation (session is normally non-blocking)
+    let session = browser.session.lock();
+    session.set_blocking(true);
+
+    let sftp = browser.sftp.lock();
+    let mut file = sftp
+        .create(std::path::Path::new(&remote_path))
+        .map_err(|e| {
+            session.set_blocking(false);
+            format!("Failed to create remote file: {}", e)
+        })?;
+
+    use std::io::Write;
+    let result = file.write_all(content.as_bytes())
+        .map_err(|e| format!("Failed to write remote file: {}", e));
+
+    session.set_blocking(false);
+    result
+}
+
+#[tauri::command]
+async fn ftp_read_file(
+    ftp_sessions: State<'_, FtpSessions>,
+    ftp_id: String,
+    remote_path: String,
+) -> Result<String, String> {
+    let sessions = ftp_sessions.lock();
+    let browser = sessions
+        .get(&ftp_id)
+        .ok_or_else(|| "FTP session not found".to_string())?;
+
+    let stream = browser.stream();
+    let mut stream_guard = stream.lock();
+
+    let cursor = stream_guard
+        .retr_as_buffer(&remote_path)
+        .map_err(|e| format!("Failed to download FTP file: {}", e))?;
+
+    String::from_utf8(cursor.into_inner())
+        .map_err(|e| format!("File is not valid UTF-8: {}", e))
+}
+
+#[tauri::command]
+async fn ftp_write_file(
+    ftp_sessions: State<'_, FtpSessions>,
+    ftp_id: String,
+    remote_path: String,
+    content: String,
+) -> Result<(), String> {
+    let sessions = ftp_sessions.lock();
+    let browser = sessions
+        .get(&ftp_id)
+        .ok_or_else(|| "FTP session not found".to_string())?;
+
+    let stream = browser.stream();
+    let mut stream_guard = stream.lock();
+
+    let mut reader = std::io::Cursor::new(content.into_bytes());
+    stream_guard
+        .put_file(&remote_path, &mut reader)
+        .map_err(|e| format!("Failed to upload FTP file: {}", e))?;
+    Ok(())
+}
+
 // ============ Local File System Commands ============
 
 #[tauri::command]
@@ -890,6 +1088,13 @@ async fn local_list_dir(path: String) -> Result<Vec<local::browser::FileEntry>, 
 #[tauri::command]
 async fn local_get_home_dir() -> Result<String, String> {
     local::browser::get_home_dir().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn check_is_directory(path: String) -> Result<bool, String> {
+    std::fs::metadata(&path)
+        .map(|m| m.is_dir())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1043,6 +1248,7 @@ pub fn run() {
             save_ftp_connection,
             save_vnc_connection,
             save_rdp_connection,
+            update_connection,
             delete_connection,
             connect_saved,
             has_stored_password,
@@ -1070,8 +1276,16 @@ pub fn run() {
             ftp_download,
             ftp_upload,
             ftp_upload_folder,
+            // File Editor
+            read_local_file,
+            write_local_file,
+            sftp_read_file,
+            sftp_write_file,
+            ftp_read_file,
+            ftp_write_file,
             // Local File System
             local_list_dir,
+            check_is_directory,
             // VNC
             vnc_connect,
             vnc_send_input,

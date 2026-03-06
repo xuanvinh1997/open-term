@@ -52,21 +52,21 @@ export function MainLayout() {
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-neutral-950">
       {/* Title Bar */}
-      <header className="flex items-center h-9 bg-neutral-200 dark:bg-neutral-900/80 backdrop-blur-sm px-4 select-none border-b border-neutral-300 dark:border-white/10 shrink-0" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}>
-        <div className="flex items-center gap-2 mr-2" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+      <header className="flex items-center h-8 bg-neutral-200 dark:bg-neutral-900/80 backdrop-blur-sm px-3 select-none border-b border-neutral-300 dark:border-white/10 shrink-0" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}>
+        <div className="flex items-center gap-1.5 mr-2" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
           <Button
             isIconOnly
             size="sm"
             variant="ghost"
             onPress={toggleSidebar}
-            className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white data-[hover=true]:bg-black/10 dark:data-[hover=true]:bg-white/10 w-6 h-6 min-w-6 rounded-sm"
+            className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white data-[hover=true]:bg-black/10 dark:data-[hover=true]:bg-white/10 w-5 h-5 min-w-5 rounded-sm"
             aria-label="Toggle Sidebar"
           >
-            <VscLayoutSidebarLeft size={16} />
+            <VscLayoutSidebarLeft size={14} />
           </Button>
           <ThemeToggle />
         </div>
-        <span className="text-sm font-semibold tracking-tight text-neutral-900 dark:text-white">OpenTerm</span>
+        <span className="text-xs font-semibold tracking-tight text-neutral-900 dark:text-white">OpenTerm</span>
       </header>
 
       {/* Main Content with Resizable Panels */}
@@ -91,7 +91,7 @@ export function MainLayout() {
 
           {/* Resize Handle - hide only when FTP is active */}
           {!showFtpBrowser && (
-            <PanelResizeHandle className="w-1 hover:cursor-auto bg-neutral-300 dark:bg-neutral-800 hover:bg-blue-600/50 transition-colors duration-200 outline-none flex justify-center items-center group cursor-col-resize z-10" />
+            <PanelResizeHandle className="w-px hover:w-1 hover:cursor-auto bg-neutral-300 dark:bg-neutral-700 hover:bg-blue-500/50 transition-all duration-200 outline-none flex justify-center items-center group cursor-col-resize z-10" />
           )}
 
           {/* Main Content Panel */}
@@ -112,7 +112,7 @@ export function MainLayout() {
                           onClose={handleCloseSftp}
                         />
                       </Panel>
-                      <PanelResizeHandle className="w-1 hover:cursor-auto bg-neutral-300 dark:bg-neutral-800 hover:bg-blue-600/50 transition-colors duration-200 outline-none flex justify-center items-center group cursor-col-resize z-10" />
+                      <PanelResizeHandle className="w-px hover:w-1 hover:cursor-auto bg-neutral-300 dark:bg-neutral-700 hover:bg-blue-500/50 transition-all duration-200 outline-none flex justify-center items-center group cursor-col-resize z-10" />
                     </>
                   )}
                   {/* Terminal Panel */}
