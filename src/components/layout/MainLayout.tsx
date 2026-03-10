@@ -50,23 +50,23 @@ export function MainLayout() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-neutral-950">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-white dark:bg-[#1e1e1e]">
       {/* Title Bar */}
-      <header className="flex items-center h-8 bg-neutral-200 dark:bg-neutral-900/80 backdrop-blur-sm px-3 select-none border-b border-neutral-300 dark:border-white/10 shrink-0" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}>
-        <div className="flex items-center gap-1.5 mr-2" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+      <header className="relative flex items-center h-9 bg-neutral-100 dark:bg-[#323233] px-3 select-none border-b border-neutral-300 dark:border-[#2b2b2b] shrink-0" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}>
+        <div className="flex items-center gap-1" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
           <Button
             isIconOnly
             size="sm"
             variant="ghost"
             onPress={toggleSidebar}
-            className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white data-[hover=true]:bg-black/10 dark:data-[hover=true]:bg-white/10 w-5 h-5 min-w-5 rounded-sm"
+            className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white data-[hover=true]:bg-black/10 dark:data-[hover=true]:bg-white/10 w-6 h-6 min-w-6 rounded-sm"
             aria-label="Toggle Sidebar"
           >
-            <VscLayoutSidebarLeft size={14} />
+            <VscLayoutSidebarLeft size={15} />
           </Button>
           <ThemeToggle />
         </div>
-        <span className="text-xs font-semibold tracking-tight text-neutral-900 dark:text-white">OpenTerm</span>
+        <span className="absolute left-1/2 -translate-x-1/2 text-xs font-medium text-neutral-500 dark:text-neutral-400 pointer-events-none">OpenTerm</span>
       </header>
 
       {/* Main Content with Resizable Panels */}
@@ -79,7 +79,7 @@ export function MainLayout() {
             // defaultSize={15}
             // minSize={15}
             maxSize={400}
-            className="bg-neutral-100 dark:bg-neutral-900 overflow-hidden flex flex-col"
+            className="bg-neutral-50 dark:bg-[#252526] overflow-hidden flex flex-col"
             collapsible={true}
             collapsedSize={0}
           >
@@ -91,7 +91,7 @@ export function MainLayout() {
 
           {/* Resize Handle - hide only when FTP is active */}
           {!showFtpBrowser && (
-            <PanelResizeHandle className="w-px hover:w-1 hover:cursor-auto bg-neutral-300 dark:bg-neutral-700 hover:bg-blue-500/50 transition-all duration-200 outline-none flex justify-center items-center group cursor-col-resize z-10" />
+            <PanelResizeHandle className="w-px hover:w-1 hover:cursor-auto bg-neutral-200 dark:bg-[#2b2b2b] hover:bg-blue-500 transition-all duration-200 outline-none flex justify-center items-center group cursor-col-resize z-10" />
           )}
 
           {/* Main Content Panel */}
@@ -112,7 +112,7 @@ export function MainLayout() {
                           onClose={handleCloseSftp}
                         />
                       </Panel>
-                      <PanelResizeHandle className="w-px hover:w-1 hover:cursor-auto bg-neutral-300 dark:bg-neutral-700 hover:bg-blue-500/50 transition-all duration-200 outline-none flex justify-center items-center group cursor-col-resize z-10" />
+                      <PanelResizeHandle className="w-px hover:w-1 hover:cursor-auto bg-neutral-200 dark:bg-[#2b2b2b] hover:bg-blue-500 transition-all duration-200 outline-none flex justify-center items-center group cursor-col-resize z-10" />
                     </>
                   )}
                   {/* Terminal Panel */}

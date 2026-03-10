@@ -42,7 +42,7 @@ export function Sidebar({ onOpenSftp, onOpenFtp }: SidebarProps) {
   };
 
   return (
-    <div className="flex w-full h-full min-w-0 overflow-hidden bg-neutral-100 dark:bg-neutral-800">
+    <div className="flex w-full h-full min-w-0 overflow-hidden bg-neutral-50 dark:bg-[#252526]">
       <ConnectionManager
         onNewConnection={() => openConnectionForm("ssh")}
         onEditConnection={handleEditConnection}

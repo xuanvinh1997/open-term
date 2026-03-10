@@ -12,11 +12,18 @@ import {
 } from "react-icons/vsc";
 import { cn } from "@/lib/utils";
 
+export interface FileContextMenuEvent {
+  file: FileEntry;
+  x: number;
+  y: number;
+}
+
 interface FileTreeProps {
   files: FileEntry[];
   currentPath: string;
   onNavigate: (path: string) => void;
   onDelete: (path: string, isDir: boolean) => void;
+  onContextMenu?: (event: FileContextMenuEvent) => void;
   selectedFiles?: Set<string>;
   onSelect?: (path: string, isMulti: boolean) => void;
   onClearSelection?: () => void;
@@ -27,6 +34,7 @@ export function FileTree({
   files,
   onNavigate,
   onDelete,
+  onContextMenu: onContextMenuProp,
   selectedFiles,
   onSelect,
   onClearSelection,
@@ -85,15 +93,6 @@ export function FileTree({
     return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
   };
 
-  const formatDate = (timestamp: number | null): string => {
-    if (!timestamp) return "-";
-    const date = new Date(timestamp * 1000);
-    return date.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
 
   const handleClick = (file: FileEntry, e: React.MouseEvent) => {
     // Handle selection if enabled
@@ -124,7 +123,11 @@ export function FileTree({
 
   const handleContextMenu = (e: React.MouseEvent, file: FileEntry) => {
     e.preventDefault();
-    onDelete(file.path, file.file_type === "Directory");
+    if (onContextMenuProp) {
+      onContextMenuProp({ file, x: e.clientX, y: e.clientY });
+    } else {
+      onDelete(file.path, file.file_type === "Directory");
+    }
   };
 
   // Sort files: directories first, then by name
@@ -146,31 +149,31 @@ export function FileTree({
   return (
     <div className="h-full overflow-auto">
       <table className="w-full border-collapse">
-        <thead className="sticky top-0 bg-white dark:bg-neutral-900 z-10">
+        <thead className="sticky top-0 bg-neutral-50 dark:bg-[#252526] z-10">
           <tr>
-            <th className="text-left text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 py-1.5 px-3 border-b border-neutral-200 dark:border-neutral-700">Name</th>
-            <th className="text-right text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 py-1.5 px-3 border-b border-neutral-200 dark:border-neutral-700">Size</th>
-            <th className="text-right text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 py-1.5 px-3 border-b border-neutral-200 dark:border-neutral-700">Modified</th>
+            <th className="text-left text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500 py-1 px-3 border-b border-neutral-200 dark:border-[#2b2b2b]">Name</th>
+            <th className="text-right text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500 py-1 px-3 border-b border-neutral-200 dark:border-[#2b2b2b] w-20">Size</th>
           </tr>
         </thead>
         <tbody>
           {sortedFiles.map((file) => {
             const isSelected = selectedFiles?.has(file.path) || false;
-            
+
             return (
               <tr
                 key={file.path}
                 className={cn(
-                  "cursor-default border-b border-neutral-200 dark:border-neutral-700 transition-colors duration-150",
-                  file.file_type === "Directory" && "cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800",
-                  onSelect && "cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800",
-                  isSelected && "bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/40"
+                  "cursor-default transition-colors duration-100",
+                  "hover:bg-neutral-100/60 dark:hover:bg-[#2a2d2e]",
+                  file.file_type === "Directory" && "cursor-pointer",
+                  onSelect && "cursor-pointer",
+                  isSelected && "bg-blue-500/10 dark:bg-blue-500/15 hover:bg-blue-500/15 dark:hover:bg-blue-500/20"
                 )}
                 onClick={(e) => handleClick(file, e)}
                 onDoubleClick={() => handleDoubleClick(file)}
                 onContextMenu={(e) => handleContextMenu(e, file)}
               >
-                <td className="py-1.5 px-3">
+                <td className="py-[5px] px-3">
                   <div className="flex items-center gap-2">
                     {onSelect && (
                       <span className={cn(
@@ -182,13 +185,12 @@ export function FileTree({
                         {isSelected && <VscCheck className="w-2.5 h-2.5 text-white" />}
                       </span>
                     )}
-                    <span className="flex-shrink-0 w-3.5 h-3.5">
+                    <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
                       {getFileIcon(file)}
                     </span>
                     <span
                       className={cn(
-                        "truncate text-xs text-neutral-800 dark:text-neutral-200",
-                        file.file_type === "Directory" && "text-blue-500 dark:text-blue-400 font-medium",
+                        "truncate text-[13px] text-neutral-800 dark:text-neutral-200",
                         file.file_type === "Symlink" && "text-purple-500 dark:text-purple-400 italic"
                       )}
                     >
@@ -196,11 +198,8 @@ export function FileTree({
                     </span>
                   </div>
                 </td>
-                <td className="text-right text-neutral-600 dark:text-neutral-400 text-[11px] font-mono py-1.5 px-3">
-                  {file.file_type === "Directory" ? "-" : formatSize(file.size)}
-                </td>
-                <td className="text-right text-neutral-600 dark:text-neutral-400 text-[11px] py-1.5 px-3">
-                  {formatDate(file.modified)}
+                <td className="text-right text-neutral-400 dark:text-neutral-500 text-[11px] font-mono py-[5px] px-3">
+                  {file.file_type === "Directory" ? "" : formatSize(file.size)}
                 </td>
               </tr>
             );

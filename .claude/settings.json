@@ -5,7 +5,8 @@
       "Bash(cargo tauri build)",
       "Bash(npx tauri build)",
       "Bash(conda install -y gh --channel conda-forge)",
-      "Bash(gh auth status)"
+      "Bash(gh auth status)",
+      "Bash(find /mnt/ssd/workspaces/vinhpx/open-term -maxdepth 2 -name tailwind.config.* -o -name postcss.config.*)"
     ]
   }
 }

@@ -83,7 +83,7 @@ export function TerminalTabs() {
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
-      <div className="flex items-center h-8 bg-neutral-200 dark:bg-neutral-900 border-b border-neutral-300 dark:border-neutral-700 overflow-x-auto shrink-0">
+      <div className="flex items-center h-9 bg-neutral-100 dark:bg-[#1e1e1e] border-b border-neutral-300 dark:border-[#2b2b2b] overflow-x-auto shrink-0">
         {allTabs.map((tab) => {
           const isFtp = 'isFtp' in tab && tab.isFtp;
           const isSftp = 'isSftp' in tab && tab.isSftp;
@@ -91,36 +91,40 @@ export function TerminalTabs() {
           const isRdp = 'isRdp' in tab && tab.isRdp;
           const isEditor = 'isEditor' in tab && tab.isEditor;
           const isDirty = 'isDirty' in tab && tab.isDirty;
+          const isActive = activeTabId === tab.id;
           return (
             <div
               key={tab.id}
               className={cn(
-                "flex items-center gap-1.5 px-2 h-full border-r border-neutral-300 dark:border-neutral-700 cursor-pointer select-none transition-colors group min-w-[100px] max-w-[180px]",
-                activeTabId === tab.id
-                  ? "bg-neutral-300 dark:bg-neutral-800 text-neutral-900 dark:text-white"
-                  : "bg-neutral-200 dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-300 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white"
+                "relative flex items-center gap-1.5 px-3 h-full cursor-pointer select-none transition-colors group min-w-[120px] max-w-[200px] border-r border-neutral-200 dark:border-[#2b2b2b]",
+                isActive
+                  ? "bg-white dark:bg-[#1e1e1e] text-neutral-900 dark:text-white"
+                  : "bg-neutral-200/60 dark:bg-[#2d2d2d] text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-[#2d2d2d]/80"
               )}
               onClick={() => setActiveTab(tab.id)}
             >
+              {isActive && (
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-blue-500" />
+              )}
               {isEditor ? (
-                <VscEdit className="h-3 w-3 shrink-0" />
+                <VscEdit className="h-3.5 w-3.5 shrink-0" />
               ) : isFtp ? (
-                <VscCloud className="h-3 w-3 shrink-0" />
+                <VscCloud className="h-3.5 w-3.5 shrink-0" />
               ) : isSftp ? (
-                <VscFolder className="h-3 w-3 shrink-0" />
+                <VscFolder className="h-3.5 w-3.5 shrink-0" />
               ) : isVnc ? (
-                <VscRemote className="h-3 w-3 shrink-0" />
+                <VscRemote className="h-3.5 w-3.5 shrink-0" />
               ) : isRdp ? (
-                <VscDesktopDownload className="h-3 w-3 shrink-0" />
+                <VscDesktopDownload className="h-3.5 w-3.5 shrink-0" />
               ) : (
-                <VscTerminal className="h-3 w-3 shrink-0" />
+                <VscTerminal className="h-3.5 w-3.5 shrink-0" />
               )}
               <span className="flex-1 truncate text-xs">
                 {isDirty ? "● " : ""}{tab.title}
               </span>
               {!isFtp && !isSftp && !isVnc && !isRdp && 'sessionInfo' in tab && tab.sessionInfo.session_type.type === 'Ssh' && (
                 <button
-                  className="flex items-center justify-center w-4 h-4 rounded hover:bg-blue-500 dark:hover:bg-blue-600 text-neutral-600 dark:text-neutral-400 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                  className="flex items-center justify-center w-5 h-5 rounded hover:bg-blue-500/20 text-neutral-500 dark:text-neutral-400 hover:text-blue-500 transition-colors opacity-0 group-hover:opacity-100"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleOpenSftp(tab as TerminalTab);
@@ -131,7 +135,10 @@ export function TerminalTabs() {
                 </button>
               )}
               <button
-                className="flex items-center justify-center w-4 h-4 rounded hover:bg-neutral-400 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                className={cn(
+                  "flex items-center justify-center w-5 h-5 rounded-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-300 dark:hover:bg-neutral-600 hover:text-neutral-900 dark:hover:text-white transition-colors",
+                  isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                )}
                 onClick={(e) => handleCloseTab(e, tab.id, isFtp, isSftp, isVnc, isRdp, isEditor)}
                 title={isEditor ? "Close editor" : isFtp ? "Close FTP" : isSftp ? "Close SFTP" : isVnc ? "Close VNC" : isRdp ? "Close RDP" : "Close terminal"}
               >
@@ -140,9 +147,9 @@ export function TerminalTabs() {
             </div>
           );
         })}
-        <button 
-          className="flex items-center justify-center px-2 h-full text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-300 dark:hover:bg-neutral-800 transition-colors border-r border-neutral-300 dark:border-neutral-700" 
-          onClick={handleNewTab} 
+        <button
+          className="flex items-center justify-center w-9 h-full text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-[#2d2d2d] transition-colors"
+          onClick={handleNewTab}
           title="New terminal"
         >
           +

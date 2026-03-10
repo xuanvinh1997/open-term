@@ -256,21 +256,7 @@ export function Terminal({ sessionId, isActive }: TerminalProps) {
       }}
     >
       {showSearch && (
-        <div
-          style={{
-            position: "absolute",
-            top: 4,
-            right: 16,
-            zIndex: 10,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            background: "var(--search-bg, #252526)",
-            border: "1px solid #444",
-            borderRadius: 4,
-            padding: "2px 6px",
-          }}
-        >
+        <div className="absolute top-1 right-4 z-10 flex items-center gap-1 bg-white dark:bg-[#252526] border border-neutral-300 dark:border-[#454545] rounded shadow-md px-2 py-1">
           <input
             autoFocus
             type="text"
@@ -287,25 +273,16 @@ export function Terminal({ sessionId, isActive }: TerminalProps) {
               }
             }}
             placeholder="Search..."
-            style={{
-              background: "transparent",
-              border: "1px solid #555",
-              borderRadius: 3,
-              color: "#ccc",
-              padding: "2px 6px",
-              fontSize: 12,
-              outline: "none",
-              width: 180,
-            }}
+            className="w-44 bg-white dark:bg-[#3c3c3c] border border-neutral-300 dark:border-[#555] rounded text-neutral-800 dark:text-neutral-200 text-xs px-2 py-0.5 outline-none focus:border-blue-500 transition-colors"
           />
-          <button onClick={handleSearchPrev} title="Previous" style={{ color: "#ccc", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}>&#x25B2;</button>
-          <button onClick={handleSearchNext} title="Next" style={{ color: "#ccc", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}>&#x25BC;</button>
-          <button onClick={handleCloseSearch} title="Close" style={{ color: "#ccc", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}>&#x2715;</button>
+          <button onClick={handleSearchPrev} title="Previous" className="p-0.5 text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-[#3c3c3c] rounded transition-colors text-sm cursor-pointer">&#x25B2;</button>
+          <button onClick={handleSearchNext} title="Next" className="p-0.5 text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-[#3c3c3c] rounded transition-colors text-sm cursor-pointer">&#x25BC;</button>
+          <button onClick={handleCloseSearch} title="Close" className="p-0.5 text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-[#3c3c3c] rounded transition-colors text-sm cursor-pointer">&#x2715;</button>
         </div>
       )}
       <div
         ref={containerRef}
-        style={{ width: "100%", height: "100%" }}
+        style={{ width: "100%", height: "100%", padding: "4px 0 0 8px" }}
       />
     </div>
   );

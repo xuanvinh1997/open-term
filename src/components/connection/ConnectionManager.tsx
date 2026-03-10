@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { invoke } from "@tauri-apps/api/core";
 import type { ConnectionProfile } from "../../types";
-import { VscAdd, VscEdit, VscSync, VscTrash } from "react-icons/vsc";
+import { VscAdd, VscEdit, VscSync, VscTrash, VscTerminal, VscCloud, VscRemote, VscDesktopDownload } from "react-icons/vsc";
 
 interface ConnectionManagerProps {
   onNewConnection: () => void;
@@ -317,10 +317,6 @@ export function ConnectionManager({ onNewConnection, onEditConnection, onOpenSft
     );
   };
 
-  const handleDelete = (connection: ConnectionProfile, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setDeleteConfirm(connection);
-  };
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
@@ -355,49 +351,60 @@ export function ConnectionManager({ onNewConnection, onEditConnection, onOpenSft
     return `${conn.username}@${conn.host}:${conn.port} (${formatAuthType(conn.auth_method)})`;
   };
 
+  const getConnectionIcon = (conn: ConnectionProfile) => {
+    switch (conn.connection_type) {
+      case "ftp": return <VscCloud className="h-4 w-4 text-blue-400" />;
+      case "vnc": return <VscRemote className="h-4 w-4 text-green-400" />;
+      case "rdp": return <VscDesktopDownload className="h-4 w-4 text-purple-400" />;
+      default: return <VscTerminal className="h-4 w-4 text-orange-400" />;
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full">
-      <div className="flex items-center justify-between h-8 border-b border-neutral-300 dark:border-white/10 shrink-0 px-2">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 select-none">
+      <div className="flex items-center justify-between h-9 border-b border-neutral-200 dark:border-[#2b2b2b] shrink-0 px-3">
+        <h3 className="text-[11px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500 select-none">
           Connections
         </h3>
-        <Button size="sm" variant="ghost" className="h-5 text-[11px] min-w-14 bg-blue-500 text-white dark:bg-blue-600 dark:text-white hover:bg-blue-600 dark:hover:bg-blue-700 font-medium gap-0.5 flex" onPress={onNewConnection}>
-          <VscAdd /> New
-        </Button>
+        <button
+          className="flex items-center gap-1 text-[11px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer"
+          onClick={onNewConnection}
+        >
+          <VscAdd className="h-3.5 w-3.5" />
+        </button>
       </div>
-
-      
 
       {error ? (
         <div className="flex items-center justify-center p-4 text-red-500 text-sm h-32 text-center">
           Error: {error}
         </div>
       ) : loading ? (
-        <div className="flex items-center justify-center h-32 text-neutral-600 dark:text-neutral-400 text-sm">
+        <div className="flex items-center justify-center h-32 text-neutral-500 dark:text-neutral-400 text-sm">
           Loading...
         </div>
       ) : connections.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-32 text-neutral-500 dark:text-neutral-400 text-sm p-4">
+        <div className="flex flex-col items-center justify-center h-32 text-neutral-400 dark:text-neutral-500 text-sm p-4">
           <p className="font-medium">No saved connections</p>
-          <p className="text-xs mt-2">Click "+ New" to add a connection</p>
+          <p className="text-xs mt-2 text-neutral-400">Click + to add one</p>
         </div>
       ) : (
         <div className="flex-1 overflow-auto">
-          <div className="p-1.5">
+          <div className="py-1">
             {connections.map((conn) => (
               <div
                 key={conn.id}
                 className={cn(
-                  "flex items-center px-2.5 py-1.5 cursor-pointer rounded-md group transition-colors duration-150",
-                  "hover:bg-neutral-200 dark:hover:bg-neutral-700/50",
+                  "flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors duration-100",
+                  "hover:bg-neutral-200/60 dark:hover:bg-[#2a2d2e]",
                   connectingId === conn.id && "opacity-50 pointer-events-none"
                 )}
                 onClick={() => handleConnect(conn)}
                 onContextMenu={(e) => handleContextMenu(e, conn)}
               >
+                {getConnectionIcon(conn)}
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm text-neutral-900 dark:text-neutral-100 truncate font-medium">{conn.name}</div>
-                  <div className="text-[11px] text-neutral-600 dark:text-neutral-400 truncate mt-0.5">
+                  <div className="text-[13px] text-neutral-800 dark:text-neutral-200 truncate">{conn.name}</div>
+                  <div className="text-[11px] text-neutral-400 dark:text-neutral-500 truncate">
                     {formatConnectionInfo(conn)}
                   </div>
                 </div>
@@ -522,38 +529,38 @@ export function ConnectionManager({ onNewConnection, onEditConnection, onOpenSft
       {/* Context Menu */}
       {contextMenu && (
         <div
-          className="fixed z-50 min-w-[140px] bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-md shadow-lg py-1"
+          className="fixed z-50 min-w-[160px] bg-white dark:bg-[#2d2d2d] border border-neutral-200 dark:border-[#454545] rounded-md shadow-xl py-1"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-neutral-700 dark:text-neutral-200 hover:bg-blue-500 hover:text-white transition-colors"
             onClick={() => {
               handleConnect(contextMenu.connection);
               setContextMenu(null);
             }}
           >
-            <VscSync className="h-3 w-3" />
+            <VscSync className="h-3.5 w-3.5" />
             Connect
           </button>
           <button
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-neutral-700 dark:text-neutral-200 hover:bg-blue-500 hover:text-white transition-colors"
             onClick={() => {
               onEditConnection(contextMenu.connection);
               setContextMenu(null);
             }}
           >
-            <VscEdit className="h-3 w-3" /> Edit
+            <VscEdit className="h-3.5 w-3.5" /> Edit
           </button>
-          <div className="h-px bg-neutral-200 dark:bg-neutral-700 my-0.5" />
+          <div className="h-px bg-neutral-200 dark:bg-[#454545] my-1" />
           <button
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition-colors"
             onClick={() => {
               setDeleteConfirm(contextMenu.connection);
               setContextMenu(null);
             }}
           >
-            <VscTrash className="h-3 w-3" /> Delete
+            <VscTrash className="h-3.5 w-3.5" /> Delete
           </button>
         </div>
       )}

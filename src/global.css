@@ -1,10 +1,10 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
-/* Compact scrollbars */
+/* Compact scrollbars - VS Code style */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -12,10 +12,30 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.3);
-  border-radius: 2px;
+  background: rgba(128, 128, 128, 0.25);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(128, 128, 128, 0.5);
-} 
+}
+
+/* Focus visible ring for keyboard navigation */
+*:focus-visible {
+  outline: 1px solid #007acc;
+  outline-offset: -1px;
+}
+
+/* Better text selection */
+::selection {
+  background: rgba(38, 79, 120, 0.5);
+}
+
+.dark ::selection {
+  background: rgba(38, 79, 120, 0.7);
+}
+
+/* xterm padding fix */
+.xterm-viewport {
+  scrollbar-width: thin;
+}

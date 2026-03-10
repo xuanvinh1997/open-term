@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSftpStore } from "../../stores/sftpStore";
 import { useTerminalStore } from "../../stores/terminalStore";
-import { FileTree } from "./FileTree";
+import { FileTree, type FileContextMenuEvent } from "./FileTree";
 import { isBinaryFile } from "../editor/TextEditor";
 import type { FileEntry } from "../../types";
 import { TransferQueue } from "./TransferQueue";
@@ -18,6 +18,10 @@ import {
   VscCloudUpload,
   VscFolderOpened,
   VscHome,
+  VscCloudDownload,
+  VscEdit,
+  VscTrash,
+  VscGoToFile,
 } from "react-icons/vsc";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +45,8 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
     deleteItem,
     upload,
     uploadFolder,
+    download,
+    rename,
   } = useSftpStore();
 
   const [pathInput, setPathInput] = useState(currentPath);
@@ -54,6 +60,15 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
     isDir: boolean;
     name: string;
   } | null>(null);
+  const [fileContextMenu, setFileContextMenu] = useState<{
+    file: FileEntry;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [renameModal, setRenameModal] = useState<{
+    file: FileEntry;
+  } | null>(null);
+  const [renameName, setRenameName] = useState("");
 
   useEffect(() => {
     openSftp(sessionId);
@@ -131,6 +146,58 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
     setDeleteConfirm({ path, isDir, name });
   };
 
+  const handleFileContextMenu = (event: FileContextMenuEvent) => {
+    setFileContextMenu(event);
+  };
+
+  const handleDownload = async (file: FileEntry) => {
+    setFileContextMenu(null);
+    const selected = await open({
+      multiple: false,
+      directory: true,
+      title: "Select download location",
+    });
+    if (selected && typeof selected === "string") {
+      const localPath = `${selected}/${file.name}`;
+      try {
+        await download(file.path, localPath);
+        toast.success(`Downloaded "${file.name}"`);
+      } catch (err) {
+        toast.error(`Download failed: ${err}`);
+      }
+    }
+  };
+
+  const handleRenameStart = (file: FileEntry) => {
+    setFileContextMenu(null);
+    setRenameModal({ file });
+    setRenameName(file.name);
+  };
+
+  const handleRenameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!renameModal || !renameName.trim()) return;
+    const oldPath = renameModal.file.path;
+    const parentDir = oldPath.substring(0, oldPath.lastIndexOf("/"));
+    const newPath = `${parentDir}/${renameName.trim()}`;
+    try {
+      await rename(oldPath, newPath);
+      toast.success(`Renamed to "${renameName.trim()}"`);
+      setRenameModal(null);
+      setRenameName("");
+    } catch (err) {
+      toast.error(`Rename failed: ${err}`);
+    }
+  };
+
+  // Close context menu on click outside
+  useEffect(() => {
+    if (!fileContextMenu) return;
+    const handler = () => setFileContextMenu(null);
+    window.addEventListener("click", handler);
+    return () => window.removeEventListener("click", handler);
+  }, [fileContextMenu]);
+
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
     try {
@@ -196,76 +263,76 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
   );
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-neutral-900">
+    <div className="flex flex-col h-full bg-white dark:bg-[#1e1e1e]">
       {/* Main Content - Split View */}
       <div className="flex-1 flex overflow-hidden">
         {/* File Browser - Left Side */}
-        <div className="w-[30%] flex flex-col border-r border-neutral-300 dark:border-neutral-700">
+        <div className="w-[30%] flex flex-col border-r border-neutral-200 dark:border-[#2b2b2b]">
           {/* File Browser Toolbar */}
-          <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
+          <div className="flex items-center gap-0.5 px-2 py-1 border-b border-neutral-200 dark:border-[#2b2b2b] bg-neutral-50 dark:bg-[#252526]">
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 min-w-0"
+              className="h-7 w-7 p-0 min-w-0 rounded-md text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white data-[hover=true]:bg-neutral-200 dark:data-[hover=true]:bg-[#3c3c3c]"
               onClick={handleNavigateHome}
               aria-label="Go to home"
             >
-              <VscHome className="h-3 w-3" />
+              <VscHome className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 min-w-0"
+              className="h-7 w-7 p-0 min-w-0 rounded-md text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white data-[hover=true]:bg-neutral-200 dark:data-[hover=true]:bg-[#3c3c3c]"
               onClick={handleNavigateUp}
               isDisabled={currentPath === "/"}
               aria-label="Go up"
             >
-              <VscChevronUp className="h-3 w-3" />
+              <VscChevronUp className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 min-w-0"
+              className="h-7 w-7 p-0 min-w-0 rounded-md text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white data-[hover=true]:bg-neutral-200 dark:data-[hover=true]:bg-[#3c3c3c]"
               onClick={refresh}
               isDisabled={loading}
               aria-label="Refresh"
             >
               <VscRefresh className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             </Button>
-            <div className="w-px h-3.5 bg-neutral-300 dark:bg-neutral-600 mx-0.5" />
+            <div className="w-px h-4 bg-neutral-300 dark:bg-neutral-600 mx-1" />
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 min-w-0"
+              className="h-7 w-7 p-0 min-w-0 rounded-md text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white data-[hover=true]:bg-neutral-200 dark:data-[hover=true]:bg-[#3c3c3c]"
               onClick={() => setShowNewFolderModal(true)}
               aria-label="New folder"
             >
-              <VscNewFolder className="h-3 w-3" />
+              <VscNewFolder className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 min-w-0"
+              className="h-7 w-7 p-0 min-w-0 rounded-md text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white data-[hover=true]:bg-neutral-200 dark:data-[hover=true]:bg-[#3c3c3c]"
               onClick={handleUploadFiles}
               aria-label="Upload files"
             >
-              <VscCloudUpload className="h-3 w-3" />
+              <VscCloudUpload className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 min-w-0"
+              className="h-7 w-7 p-0 min-w-0 rounded-md text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white data-[hover=true]:bg-neutral-200 dark:data-[hover=true]:bg-[#3c3c3c]"
               onClick={handleUploadFolder}
               aria-label="Upload folder"
             >
-              <VscFolderOpened className="h-3 w-3" />
+              <VscFolderOpened className="h-3.5 w-3.5" />
             </Button>
           </div>
 
           {/* Path Bar */}
-          <div className="px-1.5 py-1 bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+          <div className="px-2 py-1.5 bg-white dark:bg-[#1e1e1e] border-b border-neutral-200 dark:border-[#2b2b2b]">
             <input
-              className="w-full text-[11px] font-mono text-neutral-600 dark:text-neutral-400 bg-transparent outline-none border border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-neutral-900 rounded px-1 py-0.5 transition-colors"
+              className="w-full text-xs font-mono text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-[#3c3c3c] outline-none border border-neutral-200 dark:border-[#3c3c3c] focus:border-blue-500 focus:bg-white dark:focus:bg-[#1e1e1e] rounded px-2 py-1 transition-colors"
               value={pathInput}
               onChange={(e) => setPathInput(e.target.value)}
               onFocus={() => setIsEditingPath(true)}
@@ -321,6 +388,7 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
                 currentPath={currentPath}
                 onNavigate={navigateTo}
                 onDelete={handleDelete}
+                onContextMenu={handleFileContextMenu}
                 onOpenFile={handleOpenFile}
               />
             )}
@@ -409,6 +477,81 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
           </Modal.Container>
         </Modal.Backdrop>
       </Modal>
+
+      {/* Rename Modal */}
+      <Modal isOpen={!!renameModal} onOpenChange={(open) => { if (!open) { setRenameModal(null); setRenameName(""); } }}>
+        <Modal.Backdrop>
+          <Modal.Container>
+            <Modal.Dialog>
+              <Modal.CloseTrigger />
+              <form onSubmit={handleRenameSubmit}>
+                <Modal.Header>
+                  <Modal.Heading>Rename</Modal.Heading>
+                </Modal.Header>
+                <Modal.Body className="py-4">
+                  <Input variant="secondary"
+                    placeholder="New name"
+                    value={renameName}
+                    onChange={(e) => setRenameName(e.target.value)}
+                    autoFocus
+                  />
+                </Modal.Body>
+                <Modal.Footer>
+                  <Button type="button" variant="ghost" onPress={() => { setRenameModal(null); setRenameName(""); }}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" isDisabled={!renameName.trim()} className="bg-blue-600 text-white hover:bg-blue-700">
+                    Rename
+                  </Button>
+                </Modal.Footer>
+              </form>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+
+      {/* File Context Menu */}
+      {fileContextMenu && (
+        <div
+          className="fixed z-50 min-w-[180px] bg-white dark:bg-[#2d2d2d] border border-neutral-200 dark:border-[#454545] rounded-md shadow-xl py-1"
+          style={{ left: fileContextMenu.x, top: fileContextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {fileContextMenu.file.file_type !== "Directory" && (
+            <button
+              className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-neutral-700 dark:text-neutral-200 hover:bg-blue-500 hover:text-white transition-colors"
+              onClick={() => {
+                handleOpenFile(fileContextMenu.file);
+                setFileContextMenu(null);
+              }}
+            >
+              <VscGoToFile className="h-3.5 w-3.5" /> Open in Editor
+            </button>
+          )}
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-neutral-700 dark:text-neutral-200 hover:bg-blue-500 hover:text-white transition-colors"
+            onClick={() => handleDownload(fileContextMenu.file)}
+          >
+            <VscCloudDownload className="h-3.5 w-3.5" /> Download
+          </button>
+          <div className="h-px bg-neutral-200 dark:bg-[#454545] my-1" />
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-neutral-700 dark:text-neutral-200 hover:bg-blue-500 hover:text-white transition-colors"
+            onClick={() => handleRenameStart(fileContextMenu.file)}
+          >
+            <VscEdit className="h-3.5 w-3.5" /> Rename
+          </button>
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+            onClick={() => {
+              handleDelete(fileContextMenu.file.path, fileContextMenu.file.file_type === "Directory");
+              setFileContextMenu(null);
+            }}
+          >
+            <VscTrash className="h-3.5 w-3.5" /> Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 }
