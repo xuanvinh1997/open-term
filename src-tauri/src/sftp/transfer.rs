@@ -140,8 +140,9 @@ impl FileTransfer {
         // Create local file
         let mut local_file = File::create(local_path)?;
 
-        let mut buffer = [0u8; 32768]; // 32KB buffer
+        let mut buffer = vec![0u8; 256 * 1024]; // 256KB buffer
         let mut transferred: u64 = 0;
+        let mut last_progress: u64 = 0;
 
         loop {
             if *self.cancelled.lock() {
@@ -156,7 +157,12 @@ impl FileTransfer {
 
             local_file.write_all(&buffer[..bytes_read])?;
             transferred += bytes_read as u64;
-            progress_callback(transferred, total_size);
+
+            // Throttle progress updates to every 512KB
+            if transferred - last_progress >= 512 * 1024 || transferred == total_size {
+                progress_callback(transferred, total_size);
+                last_progress = transferred;
+            }
         }
 
         local_file.flush()?;
@@ -190,8 +196,9 @@ impl FileTransfer {
         // Create remote file
         let mut remote_file = sftp.create(remote)?;
 
-        let mut buffer = [0u8; 32768]; // 32KB buffer
+        let mut buffer = vec![0u8; 256 * 1024]; // 256KB buffer
         let mut transferred: u64 = 0;
+        let mut last_progress: u64 = 0;
 
         loop {
             if *self.cancelled.lock() {
@@ -206,7 +213,12 @@ impl FileTransfer {
 
             remote_file.write_all(&buffer[..bytes_read])?;
             transferred += bytes_read as u64;
-            progress_callback(transferred, total_size);
+
+            // Throttle progress updates to every 512KB
+            if transferred - last_progress >= 512 * 1024 || transferred == total_size {
+                progress_callback(transferred, total_size);
+                last_progress = transferred;
+            }
         }
 
         remote_file.flush()?;
@@ -283,7 +295,8 @@ impl FileTransfer {
                 let mut local_file = File::open(entry_path)?;
                 let mut remote_file = sftp.create(&remote_entry_path)?;
 
-                let mut buffer = [0u8; 32768];
+                let mut buffer = vec![0u8; 256 * 1024];
+                let mut last_progress = transferred;
                 loop {
                     if *self.cancelled.lock() {
                         session.set_blocking(false);
@@ -297,7 +310,11 @@ impl FileTransfer {
 
                     remote_file.write_all(&buffer[..bytes_read])?;
                     transferred += bytes_read as u64;
-                    progress_callback(transferred, total_size, &file_name);
+
+                    if transferred - last_progress >= 512 * 1024 {
+                        progress_callback(transferred, total_size, &file_name);
+                        last_progress = transferred;
+                    }
                 }
 
                 remote_file.flush()?;

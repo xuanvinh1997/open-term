@@ -56,19 +56,17 @@ export function useTerminalChannel({
     rafRef.current = null;
   }, [terminal]);
 
-  // Write data to the terminal backend
+  // Write data to the terminal backend (fire-and-forget for low latency)
+  const encoderRef = useRef(new TextEncoder());
   const writeToBackend = useCallback(
-    async (data: string) => {
+    (data: string) => {
       if (!sessionId) return;
 
-      const encoder = new TextEncoder();
-      const bytes = Array.from(encoder.encode(data));
+      const bytes = Array.from(encoderRef.current.encode(data));
 
-      try {
-        await invoke("write_terminal", { sessionId, data: bytes });
-      } catch (error) {
+      invoke("write_terminal", { sessionId, data: bytes }).catch((error) => {
         console.error("Failed to write to terminal:", error);
-      }
+      });
     },
     [sessionId]
   );

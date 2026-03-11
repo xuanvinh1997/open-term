@@ -258,9 +258,8 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
     });
   };
 
-  const activeTransfers = transfers.filter(
-    (t) => t.status === "InProgress" || t.status === "Pending"
-  );
+  // Show all transfers (MobaXterm style), newest first
+  const allTransfers = [...transfers].reverse();
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-[#1e1e1e]">
@@ -395,8 +394,8 @@ export function SftpBrowser({ sessionId, onClose: _onClose }: SftpBrowserProps) 
           </div>
 
           {/* Transfer Queue */}
-          {activeTransfers.length > 0 && (
-            <TransferQueue transfers={activeTransfers} />
+          {allTransfers.length > 0 && (
+            <TransferQueue transfers={allTransfers} />
           )}
         </div>
 

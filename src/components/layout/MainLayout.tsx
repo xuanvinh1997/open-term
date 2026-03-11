@@ -76,9 +76,9 @@ export function MainLayout() {
           <Panel
             panelRef={sidebarRef}
             id="sidebar"
-            // defaultSize={15}
-            // minSize={15}
-            maxSize={400}
+            defaultSize={150}
+            minSize={12}
+            maxSize={300}
             className="bg-neutral-50 dark:bg-[#252526] overflow-hidden flex flex-col"
             collapsible={true}
             collapsedSize={0}

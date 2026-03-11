@@ -3,6 +3,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { FileEntry, TransferProgress } from "../types";
 
+export interface TransferMeta {
+  startTime: number;
+  lastTime: number;
+  lastBytes: number;
+  speed: number; // bytes per second
+  eta: number; // seconds remaining
+}
+
 interface SftpState {
   sftpId: string | null;
   sessionId: string | null;
@@ -11,6 +19,7 @@ interface SftpState {
   loading: boolean;
   error: string | null;
   transfers: TransferProgress[];
+  transferMeta: Record<string, TransferMeta>;
 
   // Actions
   openSftp: (sessionId: string) => Promise<void>;
@@ -26,6 +35,8 @@ interface SftpState {
   updateTransferProgress: (id: string, transferred: number, total: number) => void;
   completeTransfer: (id: string) => void;
   failTransfer: (id: string, error: string) => void;
+  removeTransfer: (id: string) => void;
+  clearCompletedTransfers: () => void;
 }
 
 export const useSftpStore = create<SftpState>((set, get) => ({
@@ -36,6 +47,7 @@ export const useSftpStore = create<SftpState>((set, get) => ({
   loading: false,
   error: null,
   transfers: [],
+  transferMeta: {},
 
   openSftp: async (sessionId) => {
     set({ loading: true, error: null });
@@ -253,19 +265,47 @@ export const useSftpStore = create<SftpState>((set, get) => ({
   },
 
   updateTransferProgress: (id, transferred, total) => {
+    const now = Date.now();
+    const prevMeta = get().transferMeta[id];
+    let speed = prevMeta?.speed ?? 0;
+    let eta = prevMeta?.eta ?? 0;
+
+    if (prevMeta) {
+      const elapsed = (now - prevMeta.lastTime) / 1000;
+      if (elapsed > 0.1) {
+        const byteDiff = transferred - prevMeta.lastBytes;
+        const instantSpeed = byteDiff / elapsed;
+        // Smoothed speed (weighted average)
+        speed = prevMeta.speed > 0 ? prevMeta.speed * 0.7 + instantSpeed * 0.3 : instantSpeed;
+        const remaining = total - transferred;
+        eta = speed > 0 ? remaining / speed : 0;
+      }
+    }
+
+    const meta: TransferMeta = {
+      startTime: prevMeta?.startTime ?? now,
+      lastTime: now,
+      lastBytes: transferred,
+      speed,
+      eta,
+    };
+
     set((state) => ({
       transfers: state.transfers.map((t) =>
         t.id === id
           ? { ...t, transferred_bytes: transferred, total_bytes: total }
           : t
       ),
+      transferMeta: { ...state.transferMeta, [id]: meta },
     }));
   },
 
   completeTransfer: (id) => {
     set((state) => ({
       transfers: state.transfers.map((t) =>
-        t.id === id ? { ...t, status: "Completed" as const } : t
+        t.id === id
+          ? { ...t, status: "Completed" as const, transferred_bytes: t.total_bytes }
+          : t
       ),
     }));
   },
@@ -276,5 +316,29 @@ export const useSftpStore = create<SftpState>((set, get) => ({
         t.id === id ? { ...t, status: { Failed: error } } : t
       ),
     }));
+  },
+
+  removeTransfer: (id) => {
+    set((state) => {
+      const { [id]: _, ...restMeta } = state.transferMeta;
+      return {
+        transfers: state.transfers.filter((t) => t.id !== id),
+        transferMeta: restMeta,
+      };
+    });
+  },
+
+  clearCompletedTransfers: () => {
+    set((state) => {
+      const active = state.transfers.filter(
+        (t) => t.status === "InProgress" || t.status === "Pending"
+      );
+      const activeIds = new Set(active.map((t) => t.id));
+      const meta: Record<string, TransferMeta> = {};
+      for (const id of activeIds) {
+        if (state.transferMeta[id]) meta[id] = state.transferMeta[id];
+      }
+      return { transfers: active, transferMeta: meta };
+    });
   },
 }));
